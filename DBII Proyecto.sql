@@ -256,6 +256,23 @@ BEGIN
     END IF;
 END;
 
+
+-- Funciones
+
+-- Funcion para calcular la edad del usuario
+
+CREATE OR REPLACE FUNCTION EdadCliente(
+    p_nacimiento_usuario UsuarioComprador.fecha_nacimiento_usuario%TYPE
+) RETURN NUMBER AS
+    v_edad   UsuarioComprador.usu_edad%TYPE;
+    v_fecha  UsuarioComprador.fecha_nacimiento_usuario%TYPE := p_nacimiento_usuario;
+BEGIN
+    v_edad := FLOOR(MONTHS_BETWEEN(SYSDATE, v_fecha) / 12);
+    RETURN v_edad;
+END;
+/
+
+
 -- Procesos
 
 -- Vendedor
@@ -324,7 +341,8 @@ CREATE OR REPLACE PROCEDURE AddUsuarioComprador(
     p_corregimiento IN UsuarioComprador.corregimiento%TYPE,
     p_calle IN UsuarioComprador.calle%TYPE,
     p_numero_casa IN UsuarioComprador.numero_casa%TYPE,
-    p_id_carrito IN UsuarioComprador.id_carrito%TYPE
+    p_id_carrito IN UsuarioComprador.id_carrito%TYPE,
+    p_edad UsuarioComprador.usu_edad%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -333,9 +351,9 @@ BEGIN
     END IF;
 
     INSERT INTO UsuarioComprador (
-        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito
+        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito, usu_edad
     ) VALUES (
-        seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito
+        seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito, EdadCliente(p_fecha_nacimiento_usuario)
     );
 
 EXCEPTION
@@ -604,5 +622,81 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddResenha;
+/
+
+-- Actualizar estatus de ordenes
+
+CREATE OR REPLACE PROCEDURE ActualizarOrdenEstado(
+    p_old_status Orden.estado_orden%TYPE,
+    p_new_status Orden.estado_orden%TYPE,
+    p_dias_limite NUMBER
+) AS
+    CURSOR c_ordenes IS
+        SELECT id_orden, estado_orden, fecha_orden, id_usuario, precio_total, items_total
+        FROM Orden
+        WHERE estado_orden = p_old_status
+        AND fecha_orden <= SYSDATE - p_dias_limite;
+    
+    v_id_orden Orden.id_orden%TYPE;
+    v_estado_orden Orden.estado_orden%TYPE;
+    v_fecha_orden Orden.fecha_orden%TYPE;
+    v_id_usuario Orden.id_usuario%TYPE;
+    v_precio_total Orden.precio_total%TYPE;
+    v_items_total Orden.items_total%TYPE;
+BEGIN
+    OPEN c_ordenes;
+    LOOP
+        FETCH c_ordenes INTO v_id_orden, v_estado_orden, v_fecha_orden, v_id_usuario, v_precio_total, v_items_total;
+        EXIT WHEN c_ordenes%NOTFOUND;
+        
+        -- Actualizar el estado de la orden
+        UPDATE Orden
+        SET estado_orden = p_new_status
+        WHERE id_orden = v_id_orden;
+
+        -- Insertar registro en la tabla de auditoría
+        INSERT INTO Auditoria (
+            aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
+            aud_id_orden_afectada, aud_estado_orden_antes, aud_estado_orden_despues,
+            aud_fecha_orden_antes, aud_fecha_orden_despues, aud_id_usuario_antes,
+            aud_id_usuario_despues, aud_precio_total_antes, aud_precio_total_despues,
+            aud_items_total_antes, aud_items_total_despues
+        ) VALUES (
+            seq_auditoria.NEXTVAL, 'Orden', 'U', USER, SYSDATE,
+            v_id_orden, v_estado_orden, p_new_status,
+            v_fecha_orden, v_fecha_orden, v_id_usuario, v_id_usuario,
+            v_precio_total, v_precio_total, v_items_total, v_items_total
+        );
+    END LOOP;
+    CLOSE c_ordenes;
+    
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al actualizar el estado de las órdenes: ' || SQLERRM);
+END ActualizarOrdenEstado;
+
+-- BEGIN
+--     ActualizarOrdenEstado('Pendiente', 'Completada', 7);
+-- END;
+
+-- Procedimiento para hacer un reporte de ventar por vendedor
+
+CREATE OR REPLACE PROCEDURE ReporteVentasPorVendedor(
+    p_fecha_inicio DATE,
+    p_fecha_fin DATE,
+    p_resultado OUT SYS_REFCURSOR
+) AS
+BEGIN
+    OPEN p_resultado FOR
+    SELECT v.nombre_vendedor, SUM(o.precio_total) AS total_ventas
+    FROM Orden o
+    JOIN Producto p ON o.id_orden = p.id_orden
+    JOIN Vendedor v ON p.id_vendedor = v.id_vendedor
+    WHERE o.fecha_orden BETWEEN p_fecha_inicio AND p_fecha_fin
+    GROUP BY v.nombre_vendedor
+    ORDER BY total_ventas DESC;
+END ReporteVentasPorVendedor;
 /
 
