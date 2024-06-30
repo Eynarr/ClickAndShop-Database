@@ -20,7 +20,7 @@ CREATE TABLE UsuarioComprador (
     apellido_usuario VARCHAR2(255) NOT NULL,
     email_usuario VARCHAR2(255) UNIQUE NOT NULL,
     contrasenha_usuario VARCHAR2(255) NOT NULL,
-    fecha_nacimiento_usuario DaTE NOT NULL,
+    fecha_nacimiento_usuario DATE NOT NULL,
     provincia VARCHAR2(255) NOT NULL,
     distrito VARCHAR2(255) NOT NULL,
     corregimiento VARCHAR2(255) NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE Pago (
     id_pago NUMBER NOT NULL,
     id_usuario NUMBER NOT NULL,
     modo_pago VARCHAR2(255) NOT NULL,
-    fecha_pago DaTE DEFAULT SYSDATE,
+    fecha_pago DATE DEFAULT SYSDATE,
     id_orden NUMBER NOT NULL,
     CONSTRAINT pk_id_pago PRIMARY KEY (id_pago),
     CONSTRAINT fk_id_pago_orden FOREIGN KEY (id_orden) REFERENCES Orden(id_orden),
@@ -107,8 +107,8 @@ CREATE TABLE OrdenItem (
     id_producto NUMBER NOT NULL,
     cantidad NUMBER NOT NULL,
     precio NUMBER NOT NULL,
-    fecha_de_orden DaTE NOT NULL,
-    fecha_envio DaTE NOT NULL,
+    fecha_de_orden DATE NOT NULL,
+    fecha_envio DATE NOT NULL,
     CONSTRAINT pk_ordenitem PRIMARY KEY (id_orden, id_producto ),
     CONSTRAINT fk_id_orden_item FOREIGN KEY (id_orden) REFERENCES Orden(id_orden),
     CONSTRAINT fk_id_producto_ordenitem FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
@@ -173,6 +173,7 @@ CREATE SEQUENCE seq_auditoria START WITH 1 INCREMENT BY 1;
 ALTER TABLE UsuarioComprador ADD usu_edad NUMBER DEFAULT 0 NOT NULL;
 ALTER TABLE UsuarioComprador ADD usu_sexo CHAR(1) NOT NULL;
 ALTER TABLE UsuarioComprador ADD CONSTRAINT chk_usu_sexo CHECK(usu_sexo IN('F', 'M', 'f', 'm'));
+ALTER TABLE Producto ADD CONSTRAINT chk_inventario CHECK (inventario >= 0);
 
 -- Triggers
 
@@ -271,7 +272,6 @@ BEGIN
     RETURN v_edad;
 END;
 /
-
 
 -- Procesos
 
@@ -624,6 +624,27 @@ EXCEPTION
 END AddResenha;
 /
 
+-- Trigger para Actualizar Automáticamente la Fecha de Envío
+
+CREATE OR REPLACE TRIGGER trg_actualizar_fecha_envio
+AFTER UPDATE OF estado_orden ON Orden
+FOR EACH ROW
+WHEN (NEW.estado_orden = 'Enviado')
+BEGIN
+    UPDATE OrdenItem
+    SET fecha_envio = SYSDATE
+    WHERE id_orden = :NEW.id_orden;
+    
+    -- Registrar la actualización en la tabla de auditoría
+    INSERT INTO Auditoria (
+        aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
+        aud_id_orden_afectada, aud_fecha_orden_antes, aud_fecha_orden_despues
+    ) VALUES (
+        seq_auditoria.NEXTVAL, 'OrdenItem', 'U', USER, SYSDATE,
+        :NEW.id_orden, NULL, SYSDATE
+    );
+END;
+
 -- Actualizar estatus de ordenes
 
 CREATE OR REPLACE PROCEDURE ActualizarOrdenEstado(
@@ -676,30 +697,87 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error al actualizar el estado de las órdenes: ' || SQLERRM);
 END ActualizarOrdenEstado;
+/
 
 -- BEGIN
---     ActualizarOrdenEstado('Pendiente', 'Completada', 7);
+--     ActualizarOrdenEstado('Pendiente', 'Enviado', 7);
 -- END;
 
--- Trigger para Actualizar Automáticamente la Fecha de Envío
+-- Procedimiento para agregar al carrito
 
-CREATE OR REPLACE TRIGGER trg_set_shipping_date
-AFTER UPDATE OF estado_orden ON Orden
-FOR EACH ROW
-WHEN (NEW.estado_orden = 'Enviado')
+CREATE OR REPLACE PROCEDURE AddProductoCarrito(
+    p_id_carrito IN Carrito.id_carrito%TYPE,
+    p_id_producto IN Producto.id_producto%TYPE,
+    p_cantidad IN NUMBER
+) AS
 BEGIN
-    UPDATE OrdenItem
-    SET fecha_envio = SYSDATE
-    WHERE id_orden = :NEW.id_orden;
-    
-    -- Registrar la actualización en la tabla de auditoría
-    INSERT INTO Auditoria (
-        aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-        aud_id_orden_afectada, aud_fecha_orden_antes, aud_fecha_orden_despues
+    -- Insertar el producto en la tabla OrdenItem
+    INSERT INTO OrdenItem (
+        id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio
     ) VALUES (
-        seq_auditoria.NEXTVAL, 'OrdenItem', 'U', USER, SYSDATE,
-        :NEW.id_orden, NULL, SYSDATE
+        seq_orden_item.NEXTVAL, p_id_producto, p_cantidad,
+        (SELECT precio FROM Producto WHERE id_producto = p_id_producto),
+        SYSDATE, SYSDATE + 3
     );
+
+    -- Actualizar la cantidad total de artículos y el precio total del carrito
+    UPDATE Carrito
+    SET items_total = items_total + p_cantidad,
+        precio_total = precio_total + (p_cantidad * (SELECT precio FROM Producto WHERE id_producto = p_id_producto))
+    WHERE id_carrito = p_id_carrito;
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al agregar el producto al carrito: ' || SQLERRM);
+END AddProductoCarrito;
+/
+
+-- Trigger actualizar inventario al agregar al carrito
+
+CREATE OR REPLACE TRIGGER trg_actualizar_producto_carrito
+AFTER INSERT ON OrdenItem
+FOR EACH ROW
+BEGIN
+    UPDATE Producto
+    SET inventario = inventario - :NEW.cantidad
+    WHERE id_producto = :NEW.id_producto;
+END;
+
+
+-- Procedimiento para eliminar del carrito
+
+CREATE OR REPLACE PROCEDURE RemoveProductoCarrito(
+    p_id_carrito IN Carrito.id_carrito%TYPE,
+    p_id_producto IN Producto.id_producto%TYPE,
+    p_cantidad IN NUMBER
+) AS
+BEGIN
+    DELETE FROM OrdenItem
+    WHERE id_orden IN (SELECT id_orden FROM Orden WHERE id_carrito = p_id_carrito)
+    AND id_producto = p_id_producto;
+
+    UPDATE Carrito
+    SET items_total = items_total - p_cantidad,
+        precio_total = precio_total - (p_cantidad * (SELECT precio FROM Producto WHERE id_producto = p_id_producto))
+    WHERE id_carrito = p_id_carrito;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encontro el registro');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al eliminar el producto del carrito: ' || SQLERRM);
+END RemoveProductoCarrito;
+/
+
+-- Trigger para eliminar del carrito
+
+CREATE OR REPLACE TRIGGER trg_eliminar_producto_carrito
+AFTER DELETE ON OrdenItem
+FOR EACH ROW
+BEGIN
+    UPDATE Producto
+    SET inventario = inventario + :OLD.cantidad
+    WHERE id_producto = :OLD.id_producto;
 END;
 
 
@@ -722,8 +800,8 @@ BEGIN
 END ReporteVentasPorVendedor;
 /
 
--- Procedimienot para actualizar el inventario
-
+-- Procedimiento para actualizar el inventario
+-- Revisar
 CREATE OR REPLACE PROCEDURE ActualizarInventario(
     p_id_orden IN Orden.id_orden%TYPE
 ) AS
