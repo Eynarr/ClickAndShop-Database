@@ -681,7 +681,29 @@ END ActualizarOrdenEstado;
 --     ActualizarOrdenEstado('Pendiente', 'Completada', 7);
 -- END;
 
--- Procedimiento para hacer un reporte de ventar por vendedor
+-- Trigger para Actualizar Automáticamente la Fecha de Envío
+
+CREATE OR REPLACE TRIGGER trg_set_shipping_date
+AFTER UPDATE OF estado_orden ON Orden
+FOR EACH ROW
+WHEN (NEW.estado_orden = 'Enviado')
+BEGIN
+    UPDATE OrdenItem
+    SET fecha_envio = SYSDATE
+    WHERE id_orden = :NEW.id_orden;
+    
+    -- Registrar la actualización en la tabla de auditoría
+    INSERT INTO Auditoria (
+        aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
+        aud_id_orden_afectada, aud_fecha_orden_antes, aud_fecha_orden_despues
+    ) VALUES (
+        seq_auditoria.NEXTVAL, 'OrdenItem', 'U', USER, SYSDATE,
+        :NEW.id_orden, NULL, SYSDATE
+    );
+END;
+
+
+-- Procedimiento para hacer un reporte de ventas
 
 CREATE OR REPLACE PROCEDURE ReporteVentasPorVendedor(
     p_fecha_inicio DATE,
@@ -699,4 +721,70 @@ BEGIN
     ORDER BY total_ventas DESC;
 END ReporteVentasPorVendedor;
 /
+
+-- Procedimienot para actualizar el inventario
+
+CREATE OR REPLACE PROCEDURE ActualizarInventario(
+    p_id_orden IN Orden.id_orden%TYPE
+) AS
+    CURSOR c_productos IS
+        SELECT id_producto, cantidad
+        FROM OrdenItem
+        WHERE id_orden = p_id_orden;
+    
+    v_id_producto Producto.id_producto%TYPE;
+    v_cantidad OrdenItem.cantidad%TYPE;
+BEGIN
+    OPEN c_productos;
+    LOOP
+        FETCH c_productos INTO v_id_producto, v_cantidad;
+        EXIT WHEN c_productos%NOTFOUND;
+
+        UPDATE Producto
+        SET inventario = inventario - v_cantidad
+        WHERE id_producto = v_id_producto;
+
+        INSERT INTO Auditoria (
+            aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
+            aud_id_producto_afectado, aud_inventario_producto_antes, aud_inventario_producto_despues
+        ) VALUES (
+            seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
+            v_id_producto, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto) + v_cantidad, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto)
+        );
+    END LOOP;
+    CLOSE c_productos;
+    
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al actualizar el inventario: ' || SQLERRM);
+END ActualizarInventario;
+
+
+-- Vista de ventar por producto
+
+CREATE OR REPLACE VIEW v_ventas_por_producto AS
+SELECT p.nombre_producto, SUM(o.precio_total) AS total_ventas
+FROM Orden o
+JOIN Producto p ON o.id_orden = p.id_orden
+GROUP BY p.nombre_producto
+ORDER BY total_ventas DESC;
+
+-- Vista de detalles de ordenes
+
+CREATE OR REPLACE VIEW v_order_details AS
+SELECT o.id_orden, u.nombre_usuario, u.apellido_usuario, o.estado_orden, o.fecha_orden, 
+       c.precio_total, c.items_total
+FROM Orden o
+JOIN UsuarioComprador u ON o.id_usuario = u.id_usuario
+JOIN Carrito c ON o.id_carrito = c.id_carrito;
+
+-- Vista de inventario de productos
+
+CREATE OR REPLACE VIEW v_product_inventory AS
+SELECT p.id_producto, p.nombre_producto, p.marca, p.inventario, p.precio, c.nombre_categoria
+FROM Producto p
+JOIN Categoria c ON p.id_categoria = c.id_categoria;
+
 
