@@ -94,11 +94,9 @@ CREATE TABLE Producto (
     precio NUMBER NOT NULL,
     id_categoria NUMBER NOT NULL,
     id_vendedor NUMBER NOT NULL,
-    id_pago NUMBER NOT NULL,
     CONSTRAINT pk_id_producto PRIMARY KEY (id_producto),
     CONSTRAINT fk_id_producto_categoria FOREIGN KEY (id_categoria) REFERENCES Categoria(id_categoria),
-    CONSTRAINT fk_id_producto_vendedor FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor),
-    CONSTRAINT fk_id_producto_pago FOREIGN KEY (id_pago) REFERENCES Pago(id_pago)
+    CONSTRAINT fk_id_producto_vendedor FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
 );
 
 
@@ -142,11 +140,11 @@ CREATE TABLE Auditoria (
     aud_id_usuario_despues NUMBER,
     aud_cantidad_orden_despues NUMBER,
     -- Atributos de la tabla Producto
-    aud_id_producto_afectado NUMBER,
-    aud_precio_producto_antes NUMBER,
-    aud_precio_producto_despues NUMBER,
-    aud_inventario_antes NUMBER,
-    aud_inventario_despues NUMBER,
+    aud_id_prod_afectado NUMBER,
+    aud_precio_prod_antes NUMBER,
+    aud_precio_prod_despues NUMBER,
+    aud_inven_antes NUMBER,
+    aud_inven_despues NUMBER,
     CONSTRAINT pk_aud_id_transaccion PRIMARY KEY (aud_id_transaccion),
     CONSTRAINT chk_aud_accion CHECK (aud_accion IN ('I','U','D'))
 );
@@ -189,7 +187,7 @@ BEGIN
     IF INSERTING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_precio_proc_despues, aud_inventario_despues
+            aud_id_prod_afectado, aud_precio_prod_despues, aud_inven_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'I', USER, SYSDATE,
             :NEW.id_producto, :NEW.precio, :NEW.inventario
@@ -197,8 +195,8 @@ BEGIN
     ELSIF UPDATING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_precio_proc_antes, aud_precio_proc_despues,
-            aud_inventario_antes, aud_inventario_despues
+            aud_id_prod_afectado, aud_precio_prod_antes, aud_precio_prod_despues,
+            aud_inven_antes, aud_inven_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
             :OLD.id_producto, :OLD.precio, :NEW.precio,
@@ -207,7 +205,7 @@ BEGIN
     ELSIF DELETING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_precio_proc_antes, aud_inventario_antes
+            aud_id_prod_afectado, aud_precio_prod_antes, aud_inven_antes
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'D', USER, SYSDATE,
             :OLD.id_producto, :OLD.precio, :OLD.inventario
@@ -297,6 +295,14 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddVendedor;
+/
+
+-- Inserciones
+BEGIN
+    AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@example.com', 'password456');
+END;
+/
+
 
 -- Categoria
 CREATE OR REPLACE PROCEDURE AddCategoria(
@@ -323,6 +329,14 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddCategoria;
+/
+
+-- Inserciones
+BEGIN
+    AddCategoria('Electrónica', 'Productos electrónicos como teléfonos, computadoras, etc.');
+END;
+/
+
 
 -- Usuario
 CREATE OR REPLACE PROCEDURE AddUsuarioComprador(
@@ -337,7 +351,7 @@ CREATE OR REPLACE PROCEDURE AddUsuarioComprador(
     p_calle IN UsuarioComprador.calle%TYPE,
     p_numero_casa IN UsuarioComprador.numero_casa%TYPE,
     p_id_carrito IN UsuarioComprador.id_carrito%TYPE,
-    p_edad UsuarioComprador.usu_edad%TYPE
+    p_sexo UsuarioComprador.usu_sexo%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -346,9 +360,9 @@ BEGIN
     END IF;
 
     INSERT INTO UsuarioComprador (
-        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito, usu_edad
+        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito, usu_edad, usu_sexo
     ) VALUES (
-        seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito, EdadCliente(p_fecha_nacimiento_usuario)
+        seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito, EdadCliente(p_fecha_nacimiento_usuario), p_sexo
     );
 
 EXCEPTION
@@ -360,6 +374,13 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddUsuarioComprador;
 /
+
+-- Inserciones
+BEGIN
+    AddUsuarioComprador('Juan', 'Pérez', 'juan.perez@example.com', 'password123', TO_DATE('2003-05-06', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'San Francisco', 'Calle 50', '123', 1,'M');
+END;
+/
+
 
 -- Telefono
 CREATE OR REPLACE PROCEDURE AddTelefono(
@@ -385,6 +406,14 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTelefono;
+/
+
+-- Inserciones
+BEGIN
+    AddTelefono('123-456-7890');
+END;
+/
+
 
 -- Carrito
 CREATE OR REPLACE PROCEDURE AddCarrito(
@@ -412,6 +441,14 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddCarrito;
+/
+
+-- Inserciones
+BEGIN
+    AddCarrito(1, 0, 0);
+END;
+/
+
 
 -- Telefono vendedor
 CREATE OR REPLACE PROCEDURE AddTipoTelefonoVendedor(
@@ -441,6 +478,13 @@ EXCEPTION
 END AddTipoTelefonoVendedor;
 /
 
+-- Inserciones
+BEGIN
+    AddTipoTelefonoVendedor(1, 1, 'Móvil');
+END;
+/
+
+
 -- Telefono usuario
 CREATE OR REPLACE PROCEDURE AddTipoTelefonoUsuario(
     p_id_usuario IN tipos_telefonos_usuario.id_usuario%TYPE,
@@ -468,6 +512,13 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTipoTelefonoUsuario;
 /
+
+-- Inserciones
+BEGIN
+    AddTipoTelefonoUsuario(1, 1, 'Móvil');
+END;
+/
+
 
 -- Orden
 CREATE OR REPLACE PROCEDURE AddOrden(
@@ -498,6 +549,13 @@ EXCEPTION
 END AddOrden;
 /
 
+-- Inseerciones
+BEGIN
+    AddOrden(5, 'Pendiente', 1, 1);
+END;
+/
+
+
 -- Pago
 CREATE OR REPLACE PROCEDURE AddPago(
     p_id_usuario IN Pago.id_usuario%TYPE,
@@ -526,6 +584,12 @@ EXCEPTION
 END AddPago;
 /
 
+-- Inserciones
+BEGIN
+    AddPago(1, 'Tarjeta de Crédito', 1);
+END;
+/
+
 -- Producto
 CREATE OR REPLACE PROCEDURE AddProducto(
     p_nombre_producto IN Producto.nombre_producto%TYPE,
@@ -534,19 +598,18 @@ CREATE OR REPLACE PROCEDURE AddProducto(
     p_inventario IN Producto.inventario%TYPE,
     p_precio IN Producto.precio%TYPE,
     p_id_categoria IN Producto.id_categoria%TYPE,
-    p_id_vendedor IN Producto.id_vendedor%TYPE,
-    p_id_pago IN Producto.id_pago%TYPE
+    p_id_vendedor IN Producto.id_vendedor%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_nombre_producto IS NULL OR p_descripcion_producto IS NULL OR p_marca IS NULL OR p_inventario IS NULL OR p_precio IS NULL OR p_id_categoria IS NULL OR p_id_vendedor IS NULL OR p_id_pago IS NULL THEN
+    IF p_nombre_producto IS NULL OR p_descripcion_producto IS NULL OR p_marca IS NULL OR p_inventario IS NULL OR p_precio IS NULL OR p_id_categoria IS NULL OR p_id_vendedor IS NULL THEN
         RAISE e_ParametroNulo;
     END IF;
 
     INSERT INTO Producto (
-        id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor, id_pago
+        id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor
     ) VALUES (
-        seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor, p_id_pago
+        seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor
     );
 
 EXCEPTION
@@ -559,36 +622,12 @@ EXCEPTION
 END AddProducto;
 /
 
--- OrdenItem
-CREATE OR REPLACE PROCEDURE AddOrdenItem(
-    p_id_orden IN OrdenItem.id_orden%TYPE,
-    p_id_producto IN OrdenItem.id_producto%TYPE,
-    p_cantidad IN OrdenItem.cantidad%TYPE,
-    p_precio IN OrdenItem.precio%TYPE,
-    p_fecha_de_orden IN OrdenItem.fecha_de_orden%TYPE,
-    p_fecha_envio IN OrdenItem.fecha_envio%TYPE
-) AS
-    e_ParametroNulo EXCEPTION;
+-- Inserciones
 BEGIN
-    IF p_id_orden IS NULL OR p_id_producto IS NULL OR p_cantidad IS NULL OR p_precio IS NULL OR p_fecha_de_orden IS NULL OR p_fecha_envio IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
-
-    INSERT INTO OrdenItem (
-        id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio
-    ) VALUES (
-        p_id_orden, p_id_producto, p_cantidad, p_precio, p_fecha_de_orden, p_fecha_envio
-    );
-
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
-END AddOrdenItem;
+    AddProducto('Teléfono Móvil', 'Teléfono de última generación', 'Samsung', 100, 599.99, 1, 1);
+END;
 /
+
 
 -- Resenhas
 CREATE OR REPLACE PROCEDURE AddResenha(
@@ -619,10 +658,17 @@ EXCEPTION
 END AddResenha;
 /
 
+-- Inserciones
+
+BEGIN
+    AddResenha(1, '5', 'Excelente producto', 1);
+END;
+/
+
 -- Trigger para Actualizar Automáticamente la Fecha de Envío
 
 CREATE OR REPLACE TRIGGER trg_actualizar_fecha_envio
-AFTER UPDATE OF estado_orden ON Orden
+AFTER UPDATE OF estado_orden ON OrdenItem
 FOR EACH ROW
 WHEN (NEW.estado_orden = 'Enviado')
 BEGIN
@@ -639,7 +685,7 @@ BEGIN
         :NEW.id_orden, NULL, SYSDATE
     );
 END;
-
+/
 -- Actualizar estatus de ordenes
 
 CREATE OR REPLACE PROCEDURE ActualizarOrdenEstado(
@@ -698,39 +744,9 @@ END ActualizarOrdenEstado;
 --     ActualizarOrdenEstado('Pendiente', 'Enviado', 7);
 -- END;
 
--- Procedimiento para agregar al carrito
-
-CREATE OR REPLACE PROCEDURE AddProductoCarrito(
-    p_id_carrito IN Carrito.id_carrito%TYPE,
-    p_id_producto IN Producto.id_producto%TYPE,
-    p_cantidad IN NUMBER
-) AS
-BEGIN
-    -- Insertar el producto en la tabla OrdenItem
-    INSERT INTO OrdenItem (
-        id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio
-    ) VALUES (
-        seq_orden_item.NEXTVAL, p_id_producto, p_cantidad,
-        (SELECT precio FROM Producto WHERE id_producto = p_id_producto),
-        SYSDATE, SYSDATE + 3
-    );
-
-    -- Actualizar la cantidad total de artículos y el precio total del carrito
-    UPDATE Carrito
-    SET items_total = items_total + p_cantidad,
-        precio_total = precio_total + (p_cantidad * (SELECT precio FROM Producto WHERE id_producto = p_id_producto))
-    WHERE id_carrito = p_id_carrito;
-EXCEPTION
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al agregar el producto al carrito: ' || SQLERRM);
-END AddProductoCarrito;
-/
-
 -- Trigger actualizar inventario al agregar al carrito
 
-CREATE OR REPLACE TRIGGER trg_actualizar_producto_carrito
+CREATE OR REPLACE TRIGGER trg_actualizar_inventario
 AFTER INSERT ON OrdenItem
 FOR EACH ROW
 BEGIN
@@ -738,31 +754,52 @@ BEGIN
     SET inventario = inventario - :NEW.cantidad
     WHERE id_producto = :NEW.id_producto;
 END;
+/
 
+-- Procedimiento para agregar productos al carrito
 
--- Procedimiento para eliminar del carrito
-
-CREATE OR REPLACE PROCEDURE RemoveProductoCarrito(
+CREATE OR REPLACE PROCEDURE AddProductoCarrito(
+    p_id_orden IN OrdenItem.id_orden%TYPE,
     p_id_carrito IN Carrito.id_carrito%TYPE,
-    p_id_producto IN Producto.id_producto%TYPE,
+    p_id_producto IN OrdenItem.id_producto%TYPE,
     p_cantidad IN NUMBER
 ) AS
 BEGIN
-    DELETE FROM OrdenItem
-    WHERE id_orden IN (SELECT id_orden FROM Orden WHERE id_carrito = p_id_carrito)
-    AND id_producto = p_id_producto;
+    BEGIN
+        -- Intentar insertar el producto en la tabla OrdenItem
+        INSERT INTO OrdenItem (
+            id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio
+        ) VALUES (
+            p_id_orden, p_id_producto, p_cantidad,
+            (SELECT precio FROM Producto WHERE id_producto = p_id_producto),
+            SYSDATE, SYSDATE + 1
+        );
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+            -- Si ya existe, actualizar la cantidad del producto
+            UPDATE OrdenItem
+            SET cantidad = cantidad + p_cantidad
+            WHERE id_orden = p_id_orden AND id_producto = p_id_producto;
+    END;
 
+    -- Actualizar la cantidad total de artículos y el precio total del carrito
     UPDATE Carrito
-    SET items_total = items_total - p_cantidad,
-        precio_total = precio_total - (p_cantidad * (SELECT precio FROM Producto WHERE id_producto = p_id_producto))
+    SET items_total = items_total + p_cantidad,
+        precio_total = precio_total + (p_cantidad * (SELECT precio FROM Producto WHERE id_producto = p_id_producto))
     WHERE id_carrito = p_id_carrito;
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
         DBMS_OUTPUT.PUT_LINE('No se encontro el registro');
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al eliminar el producto del carrito: ' || SQLERRM);
-END RemoveProductoCarrito;
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al agregar el producto al carrito: ' || SQLERRM);
+END AddProductoCarrito;
 /
+
+BEGIN
+    AddProductoCarrito(1,1,1,4);
+END;
+/
+
 
 -- Trigger para eliminar del carrito
 
@@ -774,6 +811,79 @@ BEGIN
     SET inventario = inventario + :OLD.cantidad
     WHERE id_producto = :OLD.id_producto;
 END;
+/
+
+-- Procedimiento para eliminar del carrito
+
+CREATE OR REPLACE PROCEDURE RemoveProductoCarrito(
+    p_id_carrito IN Carrito.id_carrito%TYPE,
+    p_id_producto IN Producto.id_producto%TYPE,
+    p_cantidad IN NUMBER
+) AS
+    v_id_orden OrdenItem.id_orden%TYPE;
+    v_cantidad_actual NUMBER;
+    v_producto_precio NUMBER;
+BEGIN
+    -- Obtener la orden asociada al carrito
+    SELECT id_orden INTO v_id_orden
+    FROM Orden
+    WHERE id_carrito = p_id_carrito
+    AND ROWNUM = 1; -- Asumiendo que hay una sola orden activa por carrito
+
+    -- Obtener la cantidad actual del producto en la orden
+    SELECT cantidad INTO v_cantidad_actual
+    FROM OrdenItem
+    WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
+    
+    -- Obtener el precio del producto
+    SELECT precio INTO v_producto_precio
+    FROM Producto
+    WHERE id_producto = p_id_producto;
+
+    IF v_cantidad_actual <= p_cantidad THEN
+        -- Si la cantidad actual es menor o igual a la cantidad a eliminar, eliminar la fila
+        DELETE FROM OrdenItem
+        WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
+    ELSE
+        -- Si la cantidad actual es mayor que la cantidad a eliminar, actualizar la cantidad
+        UPDATE OrdenItem
+        SET cantidad = cantidad - p_cantidad
+        WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
+    END IF;
+
+    -- Verificar que el carrito no quede con valores negativos
+    IF (SELECT items_total FROM Carrito WHERE id_carrito = p_id_carrito) - p_cantidad < 0 THEN
+        UPDATE Carrito
+        SET items_total = 0
+        WHERE id_carrito = p_id_carrito;
+    ELSE
+        UPDATE Carrito
+        SET items_total = items_total - p_cantidad
+        WHERE id_carrito = p_id_carrito;
+    END IF;
+
+    IF (SELECT precio_total FROM Carrito WHERE id_carrito = p_id_carrito) - (p_cantidad * v_producto_precio) < 0 THEN
+        UPDATE Carrito
+        SET precio_total = 0
+        WHERE id_carrito = p_id_carrito;
+    ELSE
+        UPDATE Carrito
+        SET precio_total = precio_total - (p_cantidad * v_producto_precio)
+        WHERE id_carrito = p_id_carrito;
+    END IF;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encontró el producto en el carrito.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al eliminar el producto del carrito: ' || SQLERRM);
+END RemoveProductoCarrito;
+/
+
+BEGIN
+    RemoveProductoCarrito(1,1,2);
+END;
+/
 
 
 -- Procedimiento para hacer un reporte de ventas
@@ -819,7 +929,7 @@ BEGIN
 
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_inventario_antes, aud_inventario_despues
+            aud_id_prod_afectado, aud_inven_antes, aud_inven_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
             v_id_producto, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto) + v_cantidad, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto)
@@ -860,48 +970,3 @@ SELECT p.id_producto, p.nombre_producto, p.marca, p.inventario, p.precio, c.nomb
 FROM Producto p
 JOIN Categoria c ON p.id_categoria = c.id_categoria;
 
-
-BEGIN
-    AddCategoria('Electrónica', 'Dispositivos electrónicos y gadgets');
-    AddCategoria('Ropa', 'Vestimenta para todas las edades y géneros');
-END;
-
-BEGIN
-    AddVendedor('0', 'Juan Pérez', 'juan.perez@example.com', 'password123');
-    AddVendedor('0', 'María García', 'maria.garcia@example.com', 'password123');
-END;
-
-BEGIN
-    AddUsuarioComprador('Carlos', 'Lopez', 'carlos.lopez@example.com', 'password123', TO_DATE('1985-05-15', 'YYYY-MM-DD'), 'Provincia1', 'Distrito1', 'Corregimiento1', 'Calle1', '1234', 1, 0);
-    AddUsuarioComprador('Ana', 'Martinez', 'ana.martinez@example.com', 'password123', TO_DATE('1990-08-20', 'YYYY-MM-DD'), 'Provincia2', 'Distrito2', 'Corregimiento2', 'Calle2', '5678', 2, 0);
-END;
-
-BEGIN
-    AddTelefono('123-456-7890');
-    AddTelefono('987-654-3210');
-END;
-
-BEGIN
-    AddCarrito(1, 0, 0);  -- Para Carlos Lopez
-    AddCarrito(2, 0, 0);  -- Para Ana Martinez
-END;
-
-BEGIN
-    AddTipoTelefonoVendedor(1, 1, 'Móvil');  -- Juan Pérez
-    AddTipoTelefonoUsuario(1, 2, 'Casa');    -- Carlos Lopez
-END;
-
-BEGIN
-    AddProducto('Laptop', 'Laptop de alta gama', 'MarcaX', 100, 1200, 1, 1, 1);  -- Producto de Juan Pérez en Electrónica
-    AddProducto('Camisa', 'Camisa de algodón', 'MarcaY', 200, 30, 2, 2, 2);      -- Producto de María García en Ropa
-END;
-
-BEGIN
-    AddOrden(2, 'Pendiente', 1, 1);  -- Orden para Carlos Lopez
-    AddOrden(3, 'Pendiente', 2, 2);  -- Orden para Ana Martinez
-END;
-
-BEGIN
-    AddProductoCarrito(1, 1, 1);  -- Agregar 1 Laptop al carrito de Carlos Lopez
-    AddProductoCarrito(2, 2, 2);  -- Agregar 2 Camisas al carrito de Ana Martinez
-END;
