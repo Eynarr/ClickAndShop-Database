@@ -136,21 +136,17 @@ CREATE TABLE Auditoria (
     -- Atributos de la tabla Orden
     aud_id_orden_afectada NUMBER,
     aud_estado_orden_antes VARCHAR2(255),
-    aud_fecha_orden_antes DATE,
     aud_id_usuario_antes NUMBER,
-    aud_precio_total_antes NUMBER,
-    aud_items_total_antes NUMBER,
+    aud_cantidad_orden_antes NUMBER,
     aud_estado_orden_despues VARCHAR2(255),
-    aud_fecha_orden_despues DATE,
     aud_id_usuario_despues NUMBER,
-    aud_precio_total_despues NUMBER,
-    aud_items_total_despues NUMBER,
+    aud_cantidad_orden_despues NUMBER,
     -- Atributos de la tabla Producto
     aud_id_producto_afectado NUMBER,
     aud_precio_producto_antes NUMBER,
     aud_precio_producto_despues NUMBER,
-    aud_inventario_producto_antes NUMBER,
-    aud_inventario_producto_despues NUMBER,
+    aud_inventario_antes NUMBER,
+    aud_inventario_despues NUMBER,
     CONSTRAINT pk_aud_id_transaccion PRIMARY KEY (aud_id_transaccion),
     CONSTRAINT chk_aud_accion CHECK (aud_accion IN ('I','U','D'))
 );
@@ -168,11 +164,17 @@ CREATE SEQUENCE seq_producto START WITH 1 INCREMENT BY 1;
 CREATE SEQUENCE seq_resenha START WITH 1 INCREMENT BY 1;
 CREATE SEQUENCE seq_auditoria START WITH 1 INCREMENT BY 1;
 
+
+SET SERVEROUTPUT ON;
+
 -- Actualizar tabla UsuarioComprador
 
 ALTER TABLE UsuarioComprador ADD usu_edad NUMBER DEFAULT 0 NOT NULL;
 ALTER TABLE UsuarioComprador ADD usu_sexo CHAR(1) NOT NULL;
 ALTER TABLE UsuarioComprador ADD CONSTRAINT chk_usu_sexo CHECK(usu_sexo IN('F', 'M', 'f', 'm'));
+
+-- Actualizar la tabla Producto
+
 ALTER TABLE Producto ADD CONSTRAINT chk_inventario CHECK (inventario >= 0);
 
 -- Triggers
@@ -187,7 +189,7 @@ BEGIN
     IF INSERTING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_precio_producto_despues, aud_inventario_producto_despues
+            aud_id_producto_afectado, aud_precio_proc_despues, aud_inventario_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'I', USER, SYSDATE,
             :NEW.id_producto, :NEW.precio, :NEW.inventario
@@ -195,8 +197,8 @@ BEGIN
     ELSIF UPDATING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_precio_producto_antes, aud_precio_producto_despues,
-            aud_inventario_producto_antes, aud_inventario_producto_despues
+            aud_id_producto_afectado, aud_precio_proc_antes, aud_precio_proc_despues,
+            aud_inventario_antes, aud_inventario_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
             :OLD.id_producto, :OLD.precio, :NEW.precio,
@@ -205,13 +207,14 @@ BEGIN
     ELSIF DELETING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_precio_producto_antes, aud_inventario_producto_antes
+            aud_id_producto_afectado, aud_precio_proc_antes, aud_inventario_antes
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'D', USER, SYSDATE,
             :OLD.id_producto, :OLD.precio, :OLD.inventario
         );
     END IF;
 END;
+/
 
 -- Trigger para auditar la tabla orden
 
@@ -223,40 +226,32 @@ BEGIN
     IF INSERTING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_despues, aud_fecha_orden_despues,
-            aud_id_usuario_despues, aud_precio_total_despues, aud_items_total_despues
+            aud_id_orden_afectada, aud_estado_orden_despues, aud_id_usuario_despues, aud_cantidad_orden_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'I', USER, SYSDATE,
-            :NEW.id_orden, :NEW.estado_orden, :NEW.fecha_orden,
-            :NEW.id_usuario, :NEW.precio_total, :NEW.items_total
+            :NEW.id_orden, :NEW.estado_orden, :NEW.id_usuario, :NEW.cantidad_orden
         );
     ELSIF UPDATING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_antes, aud_fecha_orden_antes,
-            aud_id_usuario_antes, aud_precio_total_antes, aud_items_total_antes,
-            aud_estado_orden_despues, aud_fecha_orden_despues, aud_id_usuario_despues,
-            aud_precio_total_despues, aud_items_total_despues
+            aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_cantidad_orden_antes,
+            aud_estado_orden_despues, aud_id_usuario_despues, aud_cantidad_orden_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'U', USER, SYSDATE,
-            :OLD.id_orden, :OLD.estado_orden, :OLD.fecha_orden,
-            :OLD.id_usuario, :OLD.precio_total, :OLD.items_total,
-            :NEW.estado_orden, :NEW.fecha_orden, :NEW.id_usuario,
-            :NEW.precio_total, :NEW.items_total
+            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.cantidad_orden,
+            :NEW.estado_orden, :NEW.id_usuario, :NEW.cantidad_orden
         );
     ELSIF DELETING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_antes, aud_fecha_orden_antes,
-            aud_id_usuario_antes, aud_precio_total_antes, aud_items_total_antes
+            aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_cantidad_orden_antes
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'D', USER, SYSDATE,
-            :OLD.id_orden, :OLD.estado_orden, :OLD.fecha_orden,
-            :OLD.id_usuario, :OLD.precio_total, :OLD.items_total
+            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.cantidad_orden
         );
     END IF;
 END;
-
+/
 
 -- Funciones
 
@@ -824,7 +819,7 @@ BEGIN
 
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_producto_afectado, aud_inventario_producto_antes, aud_inventario_producto_despues
+            aud_id_producto_afectado, aud_inventario_antes, aud_inventario_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
             v_id_producto, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto) + v_cantidad, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto)
@@ -866,3 +861,47 @@ FROM Producto p
 JOIN Categoria c ON p.id_categoria = c.id_categoria;
 
 
+BEGIN
+    AddCategoria('Electrónica', 'Dispositivos electrónicos y gadgets');
+    AddCategoria('Ropa', 'Vestimenta para todas las edades y géneros');
+END;
+
+BEGIN
+    AddVendedor('0', 'Juan Pérez', 'juan.perez@example.com', 'password123');
+    AddVendedor('0', 'María García', 'maria.garcia@example.com', 'password123');
+END;
+
+BEGIN
+    AddUsuarioComprador('Carlos', 'Lopez', 'carlos.lopez@example.com', 'password123', TO_DATE('1985-05-15', 'YYYY-MM-DD'), 'Provincia1', 'Distrito1', 'Corregimiento1', 'Calle1', '1234', 1, 0);
+    AddUsuarioComprador('Ana', 'Martinez', 'ana.martinez@example.com', 'password123', TO_DATE('1990-08-20', 'YYYY-MM-DD'), 'Provincia2', 'Distrito2', 'Corregimiento2', 'Calle2', '5678', 2, 0);
+END;
+
+BEGIN
+    AddTelefono('123-456-7890');
+    AddTelefono('987-654-3210');
+END;
+
+BEGIN
+    AddCarrito(1, 0, 0);  -- Para Carlos Lopez
+    AddCarrito(2, 0, 0);  -- Para Ana Martinez
+END;
+
+BEGIN
+    AddTipoTelefonoVendedor(1, 1, 'Móvil');  -- Juan Pérez
+    AddTipoTelefonoUsuario(1, 2, 'Casa');    -- Carlos Lopez
+END;
+
+BEGIN
+    AddProducto('Laptop', 'Laptop de alta gama', 'MarcaX', 100, 1200, 1, 1, 1);  -- Producto de Juan Pérez en Electrónica
+    AddProducto('Camisa', 'Camisa de algodón', 'MarcaY', 200, 30, 2, 2, 2);      -- Producto de María García en Ropa
+END;
+
+BEGIN
+    AddOrden(2, 'Pendiente', 1, 1);  -- Orden para Carlos Lopez
+    AddOrden(3, 'Pendiente', 2, 2);  -- Orden para Ana Martinez
+END;
+
+BEGIN
+    AddProductoCarrito(1, 1, 1);  -- Agregar 1 Laptop al carrito de Carlos Lopez
+    AddProductoCarrito(2, 2, 2);  -- Agregar 2 Camisas al carrito de Ana Martinez
+END;
