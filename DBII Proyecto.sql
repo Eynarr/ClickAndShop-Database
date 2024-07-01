@@ -174,6 +174,12 @@ ALTER TABLE UsuarioComprador ADD CONSTRAINT chk_usu_sexo CHECK(usu_sexo IN('F', 
 -- Actualizar la tabla Producto
 
 ALTER TABLE Producto ADD CONSTRAINT chk_inventario CHECK (inventario >= 0);
+ALTER TABLE Producto ADD CONSTRAINT chk_precio CHECK (precio >= 0);
+
+-- Actualizar la tabla carrito
+
+ALTER TABLE Carrito ADD CONSTRAINT chk_items CHECK (items_total >= 0);
+ALTER TABLE Carrito ADD CONSTRAINT chk_precio_carrito CHECK (precio_total >= 0);
 
 -- Triggers
 
@@ -300,6 +306,7 @@ END AddVendedor;
 -- Inserciones
 BEGIN
     AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@example.com', 'password456');
+    AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@example.com', 'password456');
 END;
 /
 
@@ -333,6 +340,7 @@ END AddCategoria;
 
 -- Inserciones
 BEGIN
+    AddCategoria('Electrónica', 'Productos electrónicos como teléfonos, computadoras, etc.');
     AddCategoria('Electrónica', 'Productos electrónicos como teléfonos, computadoras, etc.');
 END;
 /
@@ -378,6 +386,7 @@ END AddUsuarioComprador;
 -- Inserciones
 BEGIN
     AddUsuarioComprador('Juan', 'Pérez', 'juan.perez@example.com', 'password123', TO_DATE('2003-05-06', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'San Francisco', 'Calle 50', '123', 1,'M');
+    AddUsuarioComprador('Joaquin', 'Pérez', 'juan.perez@example.com', 'password123', TO_DATE('2003-05-06', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'San Francisco', 'Calle 50', '123', 1,'M');
 END;
 /
 
@@ -410,7 +419,8 @@ END AddTelefono;
 
 -- Inserciones
 BEGIN
-    AddTelefono('123-456-7890');
+    AddTelefono('391-4572');
+    AddTelefono('6874-8524');
 END;
 /
 
@@ -446,6 +456,7 @@ END AddCarrito;
 -- Inserciones
 BEGIN
     AddCarrito(1, 0, 0);
+    AddCarrito(2, 0, 0);
 END;
 /
 
@@ -480,7 +491,8 @@ END AddTipoTelefonoVendedor;
 
 -- Inserciones
 BEGIN
-    AddTipoTelefonoVendedor(1, 1, 'Móvil');
+    AddTipoTelefonoVendedor(1, 1, 'Celular');
+
 END;
 /
 
@@ -515,7 +527,7 @@ END AddTipoTelefonoUsuario;
 
 -- Inserciones
 BEGIN
-    AddTipoTelefonoUsuario(1, 1, 'Móvil');
+    AddTipoTelefonoVendedor(1, 2, 'Telefono');
 END;
 /
 
@@ -552,6 +564,7 @@ END AddOrden;
 -- Inseerciones
 BEGIN
     AddOrden(5, 'Pendiente', 1, 1);
+    AddOrden(5, 'Enviada', 2, 2);
 END;
 /
 
@@ -587,6 +600,7 @@ END AddPago;
 -- Inserciones
 BEGIN
     AddPago(1, 'Tarjeta de Crédito', 1);
+    AddPago(2, 'Tarjeta de Crédito', 2);
 END;
 /
 
@@ -624,6 +638,7 @@ END AddProducto;
 
 -- Inserciones
 BEGIN
+    AddProducto('Teléfono Móvil', 'Teléfono de última generación', 'Samsung', 100, 599.99, 1, 1);
     AddProducto('Teléfono Móvil', 'Teléfono de última generación', 'Samsung', 100, 599.99, 1, 1);
 END;
 /
@@ -686,6 +701,7 @@ BEGIN
     );
 END;
 /
+
 -- Actualizar estatus de ordenes
 
 CREATE OR REPLACE PROCEDURE ActualizarOrdenEstado(
@@ -744,18 +760,6 @@ END ActualizarOrdenEstado;
 --     ActualizarOrdenEstado('Pendiente', 'Enviado', 7);
 -- END;
 
--- Trigger actualizar inventario al agregar al carrito
-
-CREATE OR REPLACE TRIGGER trg_actualizar_inventario
-AFTER INSERT ON OrdenItem
-FOR EACH ROW
-BEGIN
-    UPDATE Producto
-    SET inventario = inventario - :NEW.cantidad
-    WHERE id_producto = :NEW.id_producto;
-END;
-/
-
 -- Procedimiento para agregar productos al carrito
 
 CREATE OR REPLACE PROCEDURE AddProductoCarrito(
@@ -774,12 +778,22 @@ BEGIN
             (SELECT precio FROM Producto WHERE id_producto = p_id_producto),
             SYSDATE, SYSDATE + 1
         );
+
+        -- Actualizar el inventario del producto
+        UPDATE Producto
+        SET inventario = inventario - p_cantidad
+        WHERE id_producto = p_id_producto;
     EXCEPTION
         WHEN DUP_VAL_ON_INDEX THEN
-            -- Si ya existe, actualizar la cantidad del producto
+            -- Si ya existe, actualizar la cantidad del producto en OrdenItem
             UPDATE OrdenItem
             SET cantidad = cantidad + p_cantidad
             WHERE id_orden = p_id_orden AND id_producto = p_id_producto;
+
+            -- Actualizar el inventario del producto
+            UPDATE Producto
+            SET inventario = inventario - p_cantidad
+            WHERE id_producto = p_id_producto;
     END;
 
     -- Actualizar la cantidad total de artículos y el precio total del carrito
@@ -789,27 +803,14 @@ BEGIN
     WHERE id_carrito = p_id_carrito;
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('No se encontro el registro');
+        DBMS_OUTPUT.PUT_LINE('No se encontró el registro');
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error al agregar el producto al carrito: ' || SQLERRM);
 END AddProductoCarrito;
 /
 
 BEGIN
-    AddProductoCarrito(1,1,1,4);
-END;
-/
-
-
--- Trigger para eliminar del carrito
-
-CREATE OR REPLACE TRIGGER trg_eliminar_producto_carrito
-AFTER DELETE ON OrdenItem
-FOR EACH ROW
-BEGIN
-    UPDATE Producto
-    SET inventario = inventario + :OLD.cantidad
-    WHERE id_producto = :OLD.id_producto;
+    AddProductoCarrito(1,1,1,3);
 END;
 /
 
@@ -823,6 +824,8 @@ CREATE OR REPLACE PROCEDURE RemoveProductoCarrito(
     v_id_orden OrdenItem.id_orden%TYPE;
     v_cantidad_actual NUMBER;
     v_producto_precio NUMBER;
+    v_items_total NUMBER;
+    v_precio_total NUMBER;
 BEGIN
     -- Obtener la orden asociada al carrito
     SELECT id_orden INTO v_id_orden
@@ -834,7 +837,7 @@ BEGIN
     SELECT cantidad INTO v_cantidad_actual
     FROM OrdenItem
     WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
-    
+
     -- Obtener el precio del producto
     SELECT precio INTO v_producto_precio
     FROM Producto
@@ -851,8 +854,18 @@ BEGIN
         WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
     END IF;
 
+    -- Actualizar el inventario del producto
+    UPDATE Producto
+    SET inventario = inventario + p_cantidad
+    WHERE id_producto = p_id_producto;
+
+    -- Obtener los valores actuales del carrito
+    SELECT items_total, precio_total INTO v_items_total, v_precio_total
+    FROM Carrito
+    WHERE id_carrito = p_id_carrito;
+
     -- Verificar que el carrito no quede con valores negativos
-    IF (SELECT items_total FROM Carrito WHERE id_carrito = p_id_carrito) - p_cantidad < 0 THEN
+    IF v_items_total - p_cantidad < 0 THEN
         UPDATE Carrito
         SET items_total = 0
         WHERE id_carrito = p_id_carrito;
@@ -862,7 +875,7 @@ BEGIN
         WHERE id_carrito = p_id_carrito;
     END IF;
 
-    IF (SELECT precio_total FROM Carrito WHERE id_carrito = p_id_carrito) - (p_cantidad * v_producto_precio) < 0 THEN
+    IF v_precio_total - (p_cantidad * v_producto_precio) < 0 THEN
         UPDATE Carrito
         SET precio_total = 0
         WHERE id_carrito = p_id_carrito;
@@ -871,6 +884,9 @@ BEGIN
         SET precio_total = precio_total - (p_cantidad * v_producto_precio)
         WHERE id_carrito = p_id_carrito;
     END IF;
+
+    -- Mensaje de depuración para verificar que el procedimiento se completó correctamente
+    DBMS_OUTPUT.PUT_LINE('Producto eliminado del carrito, inventario actualizado y carrito actualizado.');
 
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
