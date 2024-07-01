@@ -897,7 +897,7 @@ END RemoveProductoCarrito;
 /
 
 BEGIN
-    RemoveProductoCarrito(1,1,2);
+    RemoveProductoCarrito(1,1,1);
 END;
 /
 
@@ -920,46 +920,6 @@ BEGIN
     ORDER BY total_ventas DESC;
 END ReporteVentasPorVendedor;
 /
-
--- Procedimiento para actualizar el inventario
--- Revisar
-CREATE OR REPLACE PROCEDURE ActualizarInventario(
-    p_id_orden IN Orden.id_orden%TYPE
-) AS
-    CURSOR c_productos IS
-        SELECT id_producto, cantidad
-        FROM OrdenItem
-        WHERE id_orden = p_id_orden;
-    
-    v_id_producto Producto.id_producto%TYPE;
-    v_cantidad OrdenItem.cantidad%TYPE;
-BEGIN
-    OPEN c_productos;
-    LOOP
-        FETCH c_productos INTO v_id_producto, v_cantidad;
-        EXIT WHEN c_productos%NOTFOUND;
-
-        UPDATE Producto
-        SET inventario = inventario - v_cantidad
-        WHERE id_producto = v_id_producto;
-
-        INSERT INTO Auditoria (
-            aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_prod_afectado, aud_inven_antes, aud_inven_despues
-        ) VALUES (
-            seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
-            v_id_producto, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto) + v_cantidad, (SELECT inventario FROM Producto WHERE id_producto = v_id_producto)
-        );
-    END LOOP;
-    CLOSE c_productos;
-    
-EXCEPTION
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al actualizar el inventario: ' || SQLERRM);
-END ActualizarInventario;
-
 
 -- Vista de ventar por producto
 
