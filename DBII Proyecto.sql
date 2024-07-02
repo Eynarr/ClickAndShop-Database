@@ -308,6 +308,8 @@ CREATE OR REPLACE PROCEDURE AddVendedor(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
+    SAVEPOINT inicio_transaccion;
+    BEGIN
     IF p_ventas_totales IS NULL OR p_nombre_vendedor IS NULL OR p_email_vendedor IS NULL OR p_contrasenha_vendedor IS NULL THEN
         RAISE e_ParametroNulo;
     END IF;
@@ -320,10 +322,13 @@ BEGIN
 
 EXCEPTION
     WHEN e_ParametroNulo THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
         DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
     WHEN DUP_VAL_ON_INDEX THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion; 
         DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
     WHEN OTHERS THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddVendedor;
 /
@@ -343,23 +348,28 @@ CREATE OR REPLACE PROCEDURE AddCategoria(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_nombre_categoria IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_nombre_categoria IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO Categoria (
-        id_categoria, nombre_categoria, descripcion
-    ) VALUES (
-        seq_categoria.NEXTVAL, p_nombre_categoria, p_descripcion
-    );
+        INSERT INTO Categoria (
+            id_categoria, nombre_categoria, descripcion
+        ) VALUES (
+            seq_categoria.NEXTVAL, p_nombre_categoria, p_descripcion
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('El nombre de la categoría no acepta valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('El nombre de la categoría no acepta valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddCategoria;
 /
 
@@ -388,23 +398,28 @@ CREATE OR REPLACE PROCEDURE AddUsuarioComprador(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_nombre_usuario IS NULL OR p_apellido_usuario IS NULL OR p_email_usuario IS NULL OR p_contrasenha_usuario IS NULL OR p_fecha_nacimiento_usuario IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_nombre_usuario IS NULL OR p_apellido_usuario IS NULL OR p_email_usuario IS NULL OR p_contrasenha_usuario IS NULL OR p_fecha_nacimiento_usuario IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO UsuarioComprador (
-        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito, usu_edad, usu_sexo
-    ) VALUES (
-        seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito, EdadCliente(p_fecha_nacimiento_usuario), p_sexo
-    );
+        INSERT INTO UsuarioComprador (
+            id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito, usu_edad, usu_sexo
+        ) VALUES (
+            seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito, EdadCliente(p_fecha_nacimiento_usuario), p_sexo
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;  
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddUsuarioComprador;
 /
 
@@ -422,23 +437,28 @@ CREATE OR REPLACE PROCEDURE AddTelefono(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_telefono IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_telefono IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO Telefono (
-        id_telefono, telefono
-    ) VALUES (
-        seq_telefono.NEXTVAL, p_telefono
-    );
+        INSERT INTO Telefono (
+            id_telefono, telefono
+        ) VALUES (
+            seq_telefono.NEXTVAL, p_telefono
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('El número de teléfono no acepta valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('El número de teléfono no acepta valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTelefono;
 /
 
@@ -458,23 +478,28 @@ CREATE OR REPLACE PROCEDURE AddCarrito(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_id_usuario IS NULL OR p_precio_total IS NULL OR p_items_total IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_id_usuario IS NULL OR p_precio_total IS NULL OR p_items_total IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO Carrito (
-        id_carrito, id_usuario, precio_total, items_total
-    ) VALUES (
-        seq_carrito.NEXTVAL, p_id_usuario, p_precio_total, p_items_total
-    );
+        INSERT INTO Carrito (
+            id_carrito, id_usuario, precio_total, items_total
+        ) VALUES (
+            seq_carrito.NEXTVAL, p_id_usuario, p_precio_total, p_items_total
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddCarrito;
 /
 
@@ -494,23 +519,28 @@ CREATE OR REPLACE PROCEDURE AddTipoTelefonoVendedor(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_id_vendedor IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_id_vendedor IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO tipos_telefonos_vendedor (
-        id_vendedor, id_telefono, tipo_telefono
-    ) VALUES (
-        p_id_vendedor, p_id_telefono, p_tipo_telefono
-    );
+        INSERT INTO tipos_telefonos_vendedor (
+            id_vendedor, id_telefono, tipo_telefono
+        ) VALUES (
+            p_id_vendedor, p_id_telefono, p_tipo_telefono
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTipoTelefonoVendedor;
 /
 
@@ -530,23 +560,28 @@ CREATE OR REPLACE PROCEDURE AddTipoTelefonoUsuario(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_id_usuario IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_id_usuario IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO tipos_telefonos_usuario (
-        id_usuario, id_telefono, tipo_telefono
-    ) VALUES (
-        p_id_usuario, p_id_telefono, p_tipo_telefono
-    );
+        INSERT INTO tipos_telefonos_usuario (
+            id_usuario, id_telefono, tipo_telefono
+        ) VALUES (
+            p_id_usuario, p_id_telefono, p_tipo_telefono
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTipoTelefonoUsuario;
 /
 
@@ -566,23 +601,28 @@ CREATE OR REPLACE PROCEDURE AddOrden(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_precio_total IS NULL OR p_estado_orden IS NULL OR p_id_carrito IS NULL OR p_id_usuario IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_precio_total IS NULL OR p_estado_orden IS NULL OR p_id_carrito IS NULL OR p_id_usuario IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO Orden (
-        id_orden, precio_total, estado_orden, id_carrito, id_usuario
-    ) VALUES (
-        seq_orden.NEXTVAL, p_precio_total, p_estado_orden, p_id_carrito, p_id_usuario
-    );
+        INSERT INTO Orden (
+            id_orden, precio_total, estado_orden, id_carrito, id_usuario
+        ) VALUES (
+            seq_orden.NEXTVAL, p_precio_total, p_estado_orden, p_id_carrito, p_id_usuario
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddOrden;
 /
 
@@ -602,23 +642,28 @@ CREATE OR REPLACE PROCEDURE AddPago(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_id_usuario IS NULL OR p_modo_pago IS NULL OR p_id_orden IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_id_usuario IS NULL OR p_modo_pago IS NULL OR p_id_orden IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO Pago (
-        id_pago, id_usuario, modo_pago, fecha_pago, id_orden
-    ) VALUES (
-        seq_pago.NEXTVAL, p_id_usuario, p_modo_pago, SYSDATE, p_id_orden
-    );
+        INSERT INTO Pago (
+            id_pago, id_usuario, modo_pago, fecha_pago, id_orden
+        ) VALUES (
+            seq_pago.NEXTVAL, p_id_usuario, p_modo_pago, SYSDATE, p_id_orden
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddPago;
 /
 
@@ -641,23 +686,28 @@ CREATE OR REPLACE PROCEDURE AddProducto(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_nombre_producto IS NULL OR p_descripcion_producto IS NULL OR p_marca IS NULL OR p_inventario IS NULL OR p_precio IS NULL OR p_id_categoria IS NULL OR p_id_vendedor IS NULL THEN
-        RAISE e_ParametroNulo;
-    END IF;
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        IF p_nombre_producto IS NULL OR p_descripcion_producto IS NULL OR p_marca IS NULL OR p_inventario IS NULL OR p_precio IS NULL OR p_id_categoria IS NULL OR p_id_vendedor IS NULL THEN
+            RAISE e_ParametroNulo;
+        END IF;
 
-    INSERT INTO Producto (
-        id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor
-    ) VALUES (
-        seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor
-    );
+        INSERT INTO Producto (
+            id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor
+        ) VALUES (
+            seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor
+        );
 
-EXCEPTION
-    WHEN e_ParametroNulo THEN
-        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+    EXCEPTION
+        WHEN e_ParametroNulo THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+        WHEN DUP_VAL_ON_INDEX THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+        WHEN OTHERS THEN
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
+            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddProducto;
 /
 
@@ -678,6 +728,8 @@ CREATE OR REPLACE PROCEDURE AddResenha(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
+    SAVEPOINT inicio_transaccion;
+    BEGIN
     IF p_id_usuario IS NULL OR p_calificacion IS NULL OR p_descripcion IS NULL OR p_id_producto IS NULL THEN
         RAISE e_ParametroNulo;
     END IF;
@@ -690,10 +742,13 @@ BEGIN
 
 EXCEPTION
     WHEN e_ParametroNulo THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
     WHEN DUP_VAL_ON_INDEX THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
     WHEN OTHERS THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddResenha;
 /
@@ -713,7 +768,9 @@ CREATE OR REPLACE PROCEDURE AddProductoCarrito(
     p_id_producto IN OrdenItem.id_producto%TYPE,
     p_cantidad IN NUMBER
 ) AS
+    v_version_actual NUMBER;
 BEGIN
+    SAVEPOINT inicio_transaccion;
     BEGIN
         -- Intentar insertar el producto en la tabla OrdenItem
         INSERT INTO OrdenItem (
@@ -724,10 +781,20 @@ BEGIN
             SYSDATE, SYSDATE + 1
         );
 
-        -- Actualizar el inventario del producto
-        UPDATE Producto
-        SET inventario = inventario - p_cantidad
+-- Control de concurrencia optimista
+        SELECT version INTO v_version_actual
+        FROM Producto
         WHERE id_producto = p_id_producto;
+
+        UPDATE Producto
+        SET inventario = inventario - p_cantidad,
+            version = version + 1  -- Incrementar la versión
+        WHERE id_producto = p_id_producto
+          AND version = v_version_actual; -- Verificar la versión
+
+        IF SQL%ROWCOUNT = 0 THEN
+            RAISE_APPLICATION_ERROR(-20002, 'El producto ha sido modificado por otro usuario.');
+        END IF;
     EXCEPTION
         WHEN DUP_VAL_ON_INDEX THEN
             -- Si ya existe, actualizar la cantidad del producto en OrdenItem
@@ -735,10 +802,20 @@ BEGIN
             SET cantidad = cantidad + p_cantidad
             WHERE id_orden = p_id_orden AND id_producto = p_id_producto;
 
-            -- Actualizar el inventario del producto
-            UPDATE Producto
-            SET inventario = inventario - p_cantidad
+            -- Control de concurrencia optimista (en la actualización)
+            SELECT version INTO v_version_actual
+            FROM Producto
             WHERE id_producto = p_id_producto;
+
+            UPDATE Producto
+            SET inventario = inventario - p_cantidad,
+                version = version + 1  -- Incrementar la versión
+            WHERE id_producto = p_id_producto
+              AND version = v_version_actual; -- Verificar la versión
+
+            IF SQL%ROWCOUNT = 0 THEN
+                RAISE_APPLICATION_ERROR(-20002, 'El producto ha sido modificado por otro usuario.');
+            END IF;
     END;
 
     -- Actualizar la cantidad total de artículos y el precio total del carrito
@@ -748,8 +825,10 @@ BEGIN
     WHERE id_carrito = p_id_carrito;
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
         DBMS_OUTPUT.PUT_LINE('No se encontró el registro');
     WHEN OTHERS THEN
+        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error al agregar el producto al carrito: ' || SQLERRM);
 END AddProductoCarrito;
 /
@@ -771,75 +850,92 @@ CREATE OR REPLACE PROCEDURE RemoveProductoCarrito(
     v_producto_precio NUMBER;
     v_items_total NUMBER;
     v_precio_total NUMBER;
+    v_version_actual NUMBER; -- Variable para la versión actual
 BEGIN
-    -- Obtener la orden asociada al carrito
-    SELECT id_orden INTO v_id_orden
-    FROM Orden
-    WHERE id_carrito = p_id_carrito
-    AND ROWNUM = 1; -- Asumiendo que hay una sola orden activa por carrito
+    -- Iniciar transacción
+    SAVEPOINT inicio_transaccion;
+    BEGIN
+        -- Obtener la orden asociada al carrito
+        SELECT id_orden INTO v_id_orden
+        FROM Orden
+        WHERE id_carrito = p_id_carrito
+        AND ROWNUM = 1; -- Asumiendo que hay una sola orden activa por carrito
 
-    -- Obtener la cantidad actual del producto en la orden
-    SELECT cantidad INTO v_cantidad_actual
-    FROM OrdenItem
-    WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
-
-    -- Obtener el precio del producto
-    SELECT precio INTO v_producto_precio
-    FROM Producto
-    WHERE id_producto = p_id_producto;
-
-    IF v_cantidad_actual <= p_cantidad THEN
-        -- Si la cantidad actual es menor o igual a la cantidad a eliminar, eliminar la fila
-        DELETE FROM OrdenItem
+        -- Obtener la cantidad actual del producto en la orden
+        SELECT cantidad INTO v_cantidad_actual
+        FROM OrdenItem
         WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
-    ELSE
-        -- Si la cantidad actual es mayor que la cantidad a eliminar, actualizar la cantidad
-        UPDATE OrdenItem
-        SET cantidad = cantidad - p_cantidad
-        WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
-    END IF;
 
-    -- Actualizar el inventario del producto
-    UPDATE Producto
-    SET inventario = inventario + p_cantidad
-    WHERE id_producto = p_id_producto;
+        -- Obtener el precio del producto
+        SELECT precio INTO v_producto_precio
+        FROM Producto
+        WHERE id_producto = p_id_producto;
 
-    -- Obtener los valores actuales del carrito
-    SELECT items_total, precio_total INTO v_items_total, v_precio_total
-    FROM Carrito
-    WHERE id_carrito = p_id_carrito;
+        IF v_cantidad_actual <= p_cantidad THEN
+            -- Si la cantidad actual es menor o igual a la cantidad a eliminar, eliminar la fila
+            DELETE FROM OrdenItem
+            WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
+        ELSE
+            -- Si la cantidad actual es mayor que la cantidad a eliminar, actualizar la cantidad
+            UPDATE OrdenItem
+            SET cantidad = cantidad - p_cantidad
+            WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
+        END IF;
 
-    -- Verificar que el carrito no quede con valores negativos
-    IF v_items_total - p_cantidad < 0 THEN
-        UPDATE Carrito
-        SET items_total = 0
+        -- Control de concurrencia optimista
+        SELECT version INTO v_version_actual
+        FROM Producto
+        WHERE id_producto = p_id_producto;
+
+        -- Actualizar el inventario y la versión del producto
+        UPDATE Producto
+        SET inventario = inventario + p_cantidad,
+            version = version + 1  -- Incrementar la versión
+        WHERE id_producto = p_id_producto
+        AND version = v_version_actual; -- Verificar la versión
+
+        IF SQL%ROWCOUNT = 0 THEN
+            RAISE_APPLICATION_ERROR(-20002, 'El producto ha sido modificado por otro usuario.');
+        END IF;
+
+        -- Obtener los valores actuales del carrito
+        SELECT items_total, precio_total INTO v_items_total, v_precio_total
+        FROM Carrito
         WHERE id_carrito = p_id_carrito;
-    ELSE
-        UPDATE Carrito
-        SET items_total = items_total - p_cantidad
-        WHERE id_carrito = p_id_carrito;
-    END IF;
 
-    IF v_precio_total - (p_cantidad * v_producto_precio) < 0 THEN
-        UPDATE Carrito
-        SET precio_total = 0
-        WHERE id_carrito = p_id_carrito;
-    ELSE
-        UPDATE Carrito
-        SET precio_total = precio_total - (p_cantidad * v_producto_precio)
-        WHERE id_carrito = p_id_carrito;
-    END IF;
+        -- Verificar que el carrito no quede con valores negativos
+        IF v_items_total - p_cantidad < 0 THEN
+            UPDATE Carrito
+            SET items_total = 0
+            WHERE id_carrito = p_id_carrito;
+        ELSE
+            UPDATE Carrito
+            SET items_total = items_total - p_cantidad
+            WHERE id_carrito = p_id_carrito;
+        END IF;
 
-    -- Mensaje de depuración para verificar que el procedimiento se completó correctamente
-    DBMS_OUTPUT.PUT_LINE('Producto eliminado del carrito, inventario actualizado y carrito actualizado.');
+        IF v_precio_total - (p_cantidad * v_producto_precio) < 0 THEN
+            UPDATE Carrito
+            SET precio_total = 0
+            WHERE id_carrito = p_id_carrito;
+        ELSE
+            UPDATE Carrito
+            SET precio_total = precio_total - (p_cantidad * v_producto_precio)
+            WHERE id_carrito = p_id_carrito;
+        END IF;
 
+        -- Confirmar transacción si todo ha ido bien
+        COMMIT;
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('No se encontró el producto en el carrito.');
+        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
+        RAISE_APPLICATION_ERROR(-20003, 'No se encontró el producto en el carrito.');
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al eliminar el producto del carrito: ' || SQLERRM);
+        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
+        RAISE_APPLICATION_ERROR(-20001, 'Ocurrió un error al eliminar el producto del carrito: ' || SQLERRM);
 END RemoveProductoCarrito;
 /
+
 
 BEGIN
     RemoveProductoCarrito(1,1,1);
@@ -854,6 +950,8 @@ CREATE OR REPLACE PROCEDURE ProcesarPagoOrden(
 ) AS
     v_id_orden Pago.id_orden%TYPE;
 BEGIN
+    -- Iniciar transacción
+    SAVEPOINT inicio_transaccion;
     BEGIN
         SELECT id_orden INTO v_id_orden
         FROM Pago
@@ -870,7 +968,7 @@ BEGIN
         COMMIT;
     EXCEPTION
         WHEN OTHERS THEN
-            ROLLBACK;
+            ROLLBACK TO SAVEPOINT inicio_transaccion;
             DBMS_OUTPUT.PUT_LINE('Error en la transacción: ' || SQLERRM);
     END;
 END ProcesarPagoOrden;
