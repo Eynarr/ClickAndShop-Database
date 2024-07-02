@@ -39,8 +39,8 @@ CREATE TABLE Telefono (
 CREATE TABLE Carrito (
     id_carrito NUMBER NOT NULL,
     id_usuario NUMBER NOT NULL,
-    precio_total NUMBER NOT NULL,
-    items_total NUMBER NOT NULL,
+    precio_total NUMBER DEFAULT 0 NOT NULL,
+    items_total NUMBER DEFAULT 0 NOT NULL
     CONSTRAINT pk_id_carrito PRIMARY KEY (id_carrito),
     CONSTRAINT fk_id_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
 );
@@ -65,7 +65,7 @@ CREATE TABLE tipos_telefonos_usuario (
 
 CREATE TABLE Orden (
     id_orden NUMBER NOT NULL,
-    cantidad_orden NUMBER NOT NULL,
+    precio_total NUMBER NOT NULL,
     estado_orden VARCHAR2(255) NOT NULL,
     id_carrito NUMBER NOT NULL,
     id_usuario NUMBER NOT NULL,
@@ -135,10 +135,10 @@ CREATE TABLE Auditoria (
     aud_id_orden_afectada NUMBER,
     aud_estado_orden_antes VARCHAR2(255),
     aud_id_usuario_antes NUMBER,
-    aud_cantidad_orden_antes NUMBER,
+    aud_precio_total_antes NUMBER,
     aud_estado_orden_despues VARCHAR2(255),
     aud_id_usuario_despues NUMBER,
-    aud_cantidad_orden_despues NUMBER,
+    aud_precio_total_despues NUMBER,
     -- Atributos de la tabla Producto
     aud_id_prod_afectado NUMBER,
     aud_precio_prod_antes NUMBER,
@@ -180,6 +180,13 @@ ALTER TABLE Producto ADD CONSTRAINT chk_precio CHECK (precio >= 0);
 
 ALTER TABLE Carrito ADD CONSTRAINT chk_items CHECK (items_total >= 0);
 ALTER TABLE Carrito ADD CONSTRAINT chk_precio_carrito CHECK (precio_total >= 0);
+
+-- Actualizar la tabla pago
+
+ALTER TABLE Pago
+ADD monto_pagado NUMBER NOT NULL,
+ADD estado_pago VARCHAR2(50) DEFAULT 'Pendiente';
+
 
 -- Triggers
 
@@ -230,32 +237,51 @@ BEGIN
     IF INSERTING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_despues, aud_id_usuario_despues, aud_cantidad_orden_despues
+            aud_id_orden_afectada, aud_estado_orden_despues, aud_id_usuario_despues, aud_precio_total_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'I', USER, SYSDATE,
-            :NEW.id_orden, :NEW.estado_orden, :NEW.id_usuario, :NEW.cantidad_orden
+            :NEW.id_orden, :NEW.estado_orden, :NEW.id_usuario, :NEW.precio_total
         );
     ELSIF UPDATING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_cantidad_orden_antes,
-            aud_estado_orden_despues, aud_id_usuario_despues, aud_cantidad_orden_despues
+            aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_precio_total_antes,
+            aud_estado_orden_despues, aud_id_usuario_despues, aud_precio_total_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'U', USER, SYSDATE,
-            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.cantidad_orden,
-            :NEW.estado_orden, :NEW.id_usuario, :NEW.cantidad_orden
+            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.precio_total,
+            :NEW.estado_orden, :NEW.id_usuario, :NEW.precio_total
         );
     ELSIF DELETING THEN
         INSERT INTO Auditoria (
             aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_cantidad_orden_antes
+            aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_precio_total_antes
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'D', USER, SYSDATE,
-            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.cantidad_orden
+            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.precio_total
         );
     END IF;
 END;
 /
+
+-- Trigger para validar la cantidad de inventario de los productos
+
+CREATE OR REPLACE TRIGGER trg_validar_inventario
+BEFORE INSERT OR UPDATE ON OrdenItem
+FOR EACH ROW
+DECLARE
+    v_inventario NUMBER;
+BEGIN
+    SELECT inventario INTO v_inventario
+    FROM Producto
+    WHERE id_producto = :NEW.id_producto;
+
+    IF v_inventario < :NEW.cantidad THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Cantidad insuficiente en inventario.');
+    END IF;
+END;
+/
+
 
 -- Funciones
 
@@ -306,7 +332,7 @@ END AddVendedor;
 -- Inserciones
 BEGIN
     AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@example.com', 'password456');
-    AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@example.com', 'password456');
+    AddVendedor('500', 'Juan Rodriguez', 'juan.rodriguez@example.com', 'password456');
 END;
 /
 
@@ -419,7 +445,7 @@ END AddTelefono;
 
 -- Inserciones
 BEGIN
-    AddTelefono('391-4572');
+    AddTelefono('6214-6335');
     AddTelefono('6874-8524');
 END;
 /
@@ -527,28 +553,28 @@ END AddTipoTelefonoUsuario;
 
 -- Inserciones
 BEGIN
-    AddTipoTelefonoVendedor(1, 2, 'Telefono');
+    AddTipoTelefonoUsuario(1, 2, 'Celular');
 END;
 /
 
 
 -- Orden
 CREATE OR REPLACE PROCEDURE AddOrden(
-    p_cantidad_orden IN Orden.cantidad_orden%TYPE,
+    p_precio_total IN Orden.precio_total%TYPE,
     p_estado_orden IN Orden.estado_orden%TYPE,
     p_id_carrito IN Orden.id_carrito%TYPE,
     p_id_usuario IN Orden.id_usuario%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    IF p_cantidad_orden IS NULL OR p_estado_orden IS NULL OR p_id_carrito IS NULL OR p_id_usuario IS NULL THEN
+    IF p_precio_total IS NULL OR p_estado_orden IS NULL OR p_id_carrito IS NULL OR p_id_usuario IS NULL THEN
         RAISE e_ParametroNulo;
     END IF;
 
     INSERT INTO Orden (
-        id_orden, cantidad_orden, estado_orden, id_carrito, id_usuario
+        id_orden, precio_total, estado_orden, id_carrito, id_usuario
     ) VALUES (
-        seq_orden.NEXTVAL, p_cantidad_orden, p_estado_orden, p_id_carrito, p_id_usuario
+        seq_orden.NEXTVAL, p_precio_total, p_estado_orden, p_id_carrito, p_id_usuario
     );
 
 EXCEPTION
@@ -679,86 +705,6 @@ BEGIN
     AddResenha(1, '5', 'Excelente producto', 1);
 END;
 /
-
--- Trigger para Actualizar Automáticamente la Fecha de Envío
-
-CREATE OR REPLACE TRIGGER trg_actualizar_fecha_envio
-AFTER UPDATE OF estado_orden ON OrdenItem
-FOR EACH ROW
-WHEN (NEW.estado_orden = 'Enviado')
-BEGIN
-    UPDATE OrdenItem
-    SET fecha_envio = SYSDATE
-    WHERE id_orden = :NEW.id_orden;
-    
-    -- Registrar la actualización en la tabla de auditoría
-    INSERT INTO Auditoria (
-        aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-        aud_id_orden_afectada, aud_fecha_orden_antes, aud_fecha_orden_despues
-    ) VALUES (
-        seq_auditoria.NEXTVAL, 'OrdenItem', 'U', USER, SYSDATE,
-        :NEW.id_orden, NULL, SYSDATE
-    );
-END;
-/
-
--- Actualizar estatus de ordenes
-
-CREATE OR REPLACE PROCEDURE ActualizarOrdenEstado(
-    p_old_status Orden.estado_orden%TYPE,
-    p_new_status Orden.estado_orden%TYPE,
-    p_dias_limite NUMBER
-) AS
-    CURSOR c_ordenes IS
-        SELECT id_orden, estado_orden, fecha_orden, id_usuario, precio_total, items_total
-        FROM Orden
-        WHERE estado_orden = p_old_status
-        AND fecha_orden <= SYSDATE - p_dias_limite;
-    
-    v_id_orden Orden.id_orden%TYPE;
-    v_estado_orden Orden.estado_orden%TYPE;
-    v_fecha_orden Orden.fecha_orden%TYPE;
-    v_id_usuario Orden.id_usuario%TYPE;
-    v_precio_total Orden.precio_total%TYPE;
-    v_items_total Orden.items_total%TYPE;
-BEGIN
-    OPEN c_ordenes;
-    LOOP
-        FETCH c_ordenes INTO v_id_orden, v_estado_orden, v_fecha_orden, v_id_usuario, v_precio_total, v_items_total;
-        EXIT WHEN c_ordenes%NOTFOUND;
-        
-        -- Actualizar el estado de la orden
-        UPDATE Orden
-        SET estado_orden = p_new_status
-        WHERE id_orden = v_id_orden;
-
-        -- Insertar registro en la tabla de auditoría
-        INSERT INTO Auditoria (
-            aud_id_transaccion, aud_tabla_afectada, aud_accion, aud_usuario, aud_fecha,
-            aud_id_orden_afectada, aud_estado_orden_antes, aud_estado_orden_despues,
-            aud_fecha_orden_antes, aud_fecha_orden_despues, aud_id_usuario_antes,
-            aud_id_usuario_despues, aud_precio_total_antes, aud_precio_total_despues,
-            aud_items_total_antes, aud_items_total_despues
-        ) VALUES (
-            seq_auditoria.NEXTVAL, 'Orden', 'U', USER, SYSDATE,
-            v_id_orden, v_estado_orden, p_new_status,
-            v_fecha_orden, v_fecha_orden, v_id_usuario, v_id_usuario,
-            v_precio_total, v_precio_total, v_items_total, v_items_total
-        );
-    END LOOP;
-    CLOSE c_ordenes;
-    
-EXCEPTION
-    WHEN DUP_VAL_ON_INDEX THEN
-        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al actualizar el estado de las órdenes: ' || SQLERRM);
-END ActualizarOrdenEstado;
-/
-
--- BEGIN
---     ActualizarOrdenEstado('Pendiente', 'Enviado', 7);
--- END;
 
 -- Procedimiento para agregar productos al carrito
 
@@ -901,43 +847,41 @@ BEGIN
 END;
 /
 
+-- Transacción para procesar el pago y actualizar el estado de la orden
 
--- Procedimiento para hacer un reporte de ventas
-
-CREATE OR REPLACE PROCEDURE ReporteVentasPorVendedor(
-    p_fecha_inicio DATE,
-    p_fecha_fin DATE,
-    p_resultado OUT SYS_REFCURSOR
+CREATE OR REPLACE PROCEDURE ProcesarPagoOrden(
+    p_id_pago IN Pago.id_pago%TYPE,
+    p_modo_pago IN Pago.modo_pago%TYPE
 ) AS
+    v_id_orden Pago.id_orden%TYPE;
 BEGIN
-    OPEN p_resultado FOR
-    SELECT v.nombre_vendedor, SUM(o.precio_total) AS total_ventas
-    FROM Orden o
-    JOIN Producto p ON o.id_orden = p.id_orden
-    JOIN Vendedor v ON p.id_vendedor = v.id_vendedor
-    WHERE o.fecha_orden BETWEEN p_fecha_inicio AND p_fecha_fin
-    GROUP BY v.nombre_vendedor
-    ORDER BY total_ventas DESC;
-END ReporteVentasPorVendedor;
+    BEGIN
+        SELECT id_orden INTO v_id_orden
+        FROM Pago
+        WHERE id_pago = p_id_pago;
+        
+        UPDATE Pago
+        SET modo_pago = p_modo_pago, fecha_pago = SYSDATE
+        WHERE id_pago = p_id_pago;
+        
+        UPDATE Orden
+        SET estado_orden = 'Enviado'
+        WHERE id_orden = v_id_orden;
+        
+        COMMIT;
+    EXCEPTION
+        WHEN OTHERS THEN
+            ROLLBACK;
+            DBMS_OUTPUT.PUT_LINE('Error en la transacción: ' || SQLERRM);
+    END;
+END ProcesarPagoOrden;
 /
 
--- Vista de ventar por producto
+BEGIN
+    ProcesarPagoOrden(1, 'Tarjeta de Crédito');
+END;
+/
 
-CREATE OR REPLACE VIEW v_ventas_por_producto AS
-SELECT p.nombre_producto, SUM(o.precio_total) AS total_ventas
-FROM Orden o
-JOIN Producto p ON o.id_orden = p.id_orden
-GROUP BY p.nombre_producto
-ORDER BY total_ventas DESC;
-
--- Vista de detalles de ordenes
-
-CREATE OR REPLACE VIEW v_order_details AS
-SELECT o.id_orden, u.nombre_usuario, u.apellido_usuario, o.estado_orden, o.fecha_orden, 
-       c.precio_total, c.items_total
-FROM Orden o
-JOIN UsuarioComprador u ON o.id_usuario = u.id_usuario
-JOIN Carrito c ON o.id_carrito = c.id_carrito;
 
 -- Vista de inventario de productos
 
