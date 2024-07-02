@@ -26,7 +26,6 @@ CREATE TABLE UsuarioComprador (
     corregimiento VARCHAR2(255) NOT NULL,
     calle VARCHAR2(255) NOT NULL,
     numero_casa VARCHAR2(255) NOT NULL,
-    id_carrito NUMBER NOT NULL,
     CONSTRAINT pk_id_usuario PRIMARY KEY (id_usuario)
 );
 
