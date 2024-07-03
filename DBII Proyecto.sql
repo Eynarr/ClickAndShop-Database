@@ -578,12 +578,12 @@ END AddTipoTelefonoUsuario;
 
 -- Inserciones
 BEGIN
-    AddTipoTelefonoVendedor(1, 7, 'Celular');
-    AddTipoTelefonoVendedor(2, 8, 'Celular');
-    AddTipoTelefonoVendedor(3, 9, 'Celular');
-    AddTipoTelefonoVendedor(4, 10, 'Celular');
-    AddTipoTelefonoVendedor(5, 11, 'Celular');
-    AddTipoTelefonoVendedor(6, 12, 'Celular');
+    AddTipoTelefonoUsuario(1, 7, 'Celular');
+    AddTipoTelefonoUsuario(2, 8, 'Celular');
+    AddTipoTelefonoUsuario(3, 9, 'Celular');
+    AddTipoTelefonoUsuario(4, 10, 'Celular');
+    AddTipoTelefonoUsuario(5, 11, 'Celular');
+    AddTipoTelefonoUsuario(6, 12, 'Celular');
 END;
 /
 
