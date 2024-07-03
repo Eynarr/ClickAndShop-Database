@@ -39,7 +39,7 @@ CREATE TABLE Carrito (
     id_carrito NUMBER NOT NULL,
     id_usuario NUMBER NOT NULL,
     precio_total NUMBER DEFAULT 0 NOT NULL,
-    items_total NUMBER DEFAULT 0 NOT NULL
+    items_total NUMBER DEFAULT 0 NOT NULL,
     CONSTRAINT pk_id_carrito PRIMARY KEY (id_carrito),
     CONSTRAINT fk_id_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
 );
@@ -64,10 +64,10 @@ CREATE TABLE tipos_telefonos_usuario (
 
 CREATE TABLE Orden (
     id_orden NUMBER NOT NULL,
-    precio_total NUMBER NOT NULL,
-    estado_orden VARCHAR2(255) NOT NULL,
     id_carrito NUMBER NOT NULL,
     id_usuario NUMBER NOT NULL,
+    estado_orden VARCHAR2(255) NOT NULL,
+    precio_total NUMBER NOT NULL,
     CONSTRAINT pk_id_orden PRIMARY KEY (id_orden),
     CONSTRAINT fk_id_orden_carrito FOREIGN KEY (id_carrito) REFERENCES Carrito(id_carrito),
     CONSTRAINT fk_id_orden_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
@@ -105,7 +105,7 @@ CREATE TABLE OrdenItem (
     cantidad NUMBER NOT NULL,
     precio NUMBER NOT NULL,
     fecha_de_orden DATE NOT NULL,
-    fecha_envio DATE NOT NULL,
+    fecha_envio DATE,
     CONSTRAINT pk_ordenitem PRIMARY KEY (id_orden, id_producto ),
     CONSTRAINT fk_id_orden_item FOREIGN KEY (id_orden) REFERENCES Orden(id_orden),
     CONSTRAINT fk_id_producto_ordenitem FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
@@ -182,9 +182,26 @@ ALTER TABLE Carrito ADD CONSTRAINT chk_precio_carrito CHECK (precio_total >= 0);
 
 -- Actualizar la tabla pago
 
-ALTER TABLE Pago
-ADD monto_pagado NUMBER NOT NULL,
-ADD estado_pago VARCHAR2(50) DEFAULT 'Pendiente';
+ALTER TABLE Pago ADD monto_pagado NUMBER NOT NULL;
+ALTER TABLE Pago ADD (estado_pago VARCHAR2(50) DEFAULT 'Pendiente');
+ALTER TABLE Pago ADD CONSTRAINT chk_monto_pagado CHECK (monto_pagado >= 0);
+
+-- Actualizar la tabla ordenitem
+
+ALTER TABLE OrdenItem ADD CONSTRAINT chk_cantidad CHECK (cantidad >=0);
+ALTER TABLE OrdenItem ADD CONSTRAINT chk_precio_orden CHECK (precio >=0);
+
+
+-- Tabla intermedia para gestionar los productos del carrito
+
+CREATE TABLE CarritoProducto (
+    id_carrito NUMBER,
+    id_producto NUMBER,
+    cantidad NUMBER,
+    CONSTRAINT pk_carrito_producto PRIMARY KEY (id_carrito, id_producto),
+    CONSTRAINT fk_carrito_producto FOREIGN KEY (id_carrito) REFERENCES Carrito(id_carrito),
+    CONSTRAINT fk_producto_carrito FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
 
 
 -- Triggers
@@ -263,25 +280,6 @@ BEGIN
 END;
 /
 
--- Trigger para validar la cantidad de inventario de los productos
-
-CREATE OR REPLACE TRIGGER trg_validar_inventario
-BEFORE INSERT OR UPDATE ON OrdenItem
-FOR EACH ROW
-DECLARE
-    v_inventario NUMBER;
-BEGIN
-    SELECT inventario INTO v_inventario
-    FROM Producto
-    WHERE id_producto = :NEW.id_producto;
-
-    IF v_inventario < :NEW.cantidad THEN
-        RAISE_APPLICATION_ERROR(-20001, 'Cantidad insuficiente en inventario.');
-    END IF;
-END;
-/
-
-
 -- Funciones
 
 -- Funcion para calcular la edad del usuario
@@ -308,8 +306,6 @@ CREATE OR REPLACE PROCEDURE AddVendedor(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
     IF p_ventas_totales IS NULL OR p_nombre_vendedor IS NULL OR p_email_vendedor IS NULL OR p_contrasenha_vendedor IS NULL THEN
         RAISE e_ParametroNulo;
     END IF;
@@ -322,21 +318,22 @@ BEGIN
 
 EXCEPTION
     WHEN e_ParametroNulo THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
         DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
     WHEN DUP_VAL_ON_INDEX THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion; 
         DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
     WHEN OTHERS THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddVendedor;
 /
 
 -- Inserciones
 BEGIN
-    AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@example.com', 'password456');
-    AddVendedor('500', 'Juan Rodriguez', 'juan.rodriguez@example.com', 'password456');
+    AddVendedor('1000', 'Carlos Martínez', 'carlos.martinez@email.com', 'pass456');
+    AddVendedor('500', 'Juan Rodriguez', 'juan.rodriguez@email.com', 'pass212');
+    AddVendedor('1500', 'Ana Gomez', 'ana.gomez@email.com', 'pass789');
+    AddVendedor('2000', 'Maria Lopez', 'maria.lopez@email.com', 'pass123');
+    AddVendedor('800', 'Luis Fernandez', 'luis.fernandez@email.com', 'pass321');
+    AddVendedor('600', 'Pedro Suarez', 'pedro.suarez@email.com', 'pass654');
 END;
 /
 
@@ -348,35 +345,34 @@ CREATE OR REPLACE PROCEDURE AddCategoria(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_nombre_categoria IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_nombre_categoria IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO Categoria (
-            id_categoria, nombre_categoria, descripcion
-        ) VALUES (
-            seq_categoria.NEXTVAL, p_nombre_categoria, p_descripcion
-        );
+    INSERT INTO Categoria (
+        id_categoria, nombre_categoria, descripcion
+    ) VALUES (
+        seq_categoria.NEXTVAL, p_nombre_categoria, p_descripcion
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('El nombre de la categoría no acepta valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('El nombre de la categoría no acepta valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddCategoria;
 /
 
 -- Inserciones
 BEGIN
-    AddCategoria('Electrónica', 'Productos electrónicos como teléfonos, computadoras, etc.');
-    AddCategoria('Electrónica', 'Productos electrónicos como teléfonos, computadoras, etc.');
+    AddCategoria('Consolas y Videojuegos', 'Consolas de videojuegos, juegos y accesorios.');
+    AddCategoria('Computadoras', 'Desktops, laptops, y otros dispositivos informáticos.');
+    AddCategoria('Telefonía', 'Teléfonos móviles, accesorios y servicios relacionados.');
+    AddCategoria('Televisores', 'Televisores de alta definición y accesorios.');
+    AddCategoria('Audio', 'Equipos de sonido, auriculares y altavoces.');
+    AddCategoria('Accesorios', 'Accesorios varios para dispositivos electrónicos.');
 END;
 /
 
@@ -393,40 +389,38 @@ CREATE OR REPLACE PROCEDURE AddUsuarioComprador(
     p_corregimiento IN UsuarioComprador.corregimiento%TYPE,
     p_calle IN UsuarioComprador.calle%TYPE,
     p_numero_casa IN UsuarioComprador.numero_casa%TYPE,
-    p_id_carrito IN UsuarioComprador.id_carrito%TYPE,
     p_sexo UsuarioComprador.usu_sexo%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_nombre_usuario IS NULL OR p_apellido_usuario IS NULL OR p_email_usuario IS NULL OR p_contrasenha_usuario IS NULL OR p_fecha_nacimiento_usuario IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_nombre_usuario IS NULL OR p_apellido_usuario IS NULL OR p_email_usuario IS NULL OR p_contrasenha_usuario IS NULL OR p_fecha_nacimiento_usuario IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO UsuarioComprador (
-            id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, id_carrito, usu_edad, usu_sexo
-        ) VALUES (
-            seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, p_id_carrito, EdadCliente(p_fecha_nacimiento_usuario), p_sexo
-        );
+    INSERT INTO UsuarioComprador (
+        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, usu_edad, usu_sexo
+    ) VALUES (
+        seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, EdadCliente(p_fecha_nacimiento_usuario), p_sexo
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;  
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddUsuarioComprador;
 /
 
 -- Inserciones
 BEGIN
-    AddUsuarioComprador('Juan', 'Pérez', 'juan.perez@example.com', 'password123', TO_DATE('2003-05-06', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'San Francisco', 'Calle 50', '123', 1,'M');
-    AddUsuarioComprador('Joaquin', 'Pérez', 'juan.perez@example.com', 'password123', TO_DATE('2003-05-06', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'San Francisco', 'Calle 50', '123', 1,'M');
+    AddUsuarioComprador('Juan', 'Pérez', 'juan.perez@email.com', 'pass123', TO_DATE('2003-05-06', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'San Francisco', 'Calle 50', '123', 'M');
+    AddUsuarioComprador('Luz', 'Gonzales', 'luz.gonzales@email.com', 'pass512', TO_DATE('1985-03-23', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'Ancon', 'Calle 90', '512', 'F');
+    AddUsuarioComprador('Ana', 'Gomez', 'ana.gomez@email.com', 'pass456', TO_DATE('1995-12-15', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'Bella Vista', 'Calle 60', '456','F');
+    AddUsuarioComprador('Maria', 'Lopez', 'maria.lopez@email.com', 'pass789', TO_DATE('1988-03-23', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'El Cangrejo', 'Calle 70', '789', 'F');
+    AddUsuarioComprador('Luis', 'Fernandez', 'luis.fernandez@email.com', 'pass321', TO_DATE('2000-08-30', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'Betania', 'Calle 40', '321', 'M');
+    AddUsuarioComprador('Pedro', 'Suarez', 'pedro.suarez@email.com', 'pass654', TO_DATE('1992-11-11', 'YYYY-MM-DD'), 'Panamá', 'Panamá', 'Paitilla', 'Calle 80', '654', 'M');
 END;
 /
 
@@ -437,28 +431,23 @@ CREATE OR REPLACE PROCEDURE AddTelefono(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_telefono IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_telefono IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO Telefono (
-            id_telefono, telefono
-        ) VALUES (
-            seq_telefono.NEXTVAL, p_telefono
-        );
+    INSERT INTO Telefono (
+        id_telefono, telefono
+    ) VALUES (
+        seq_telefono.NEXTVAL, p_telefono
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('El número de teléfono no acepta valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('El número de teléfono no acepta valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTelefono;
 /
 
@@ -466,47 +455,54 @@ END AddTelefono;
 BEGIN
     AddTelefono('6214-6335');
     AddTelefono('6874-8524');
+    AddTelefono('6345-7890');
+    AddTelefono('6987-1234');
+    AddTelefono('6778-5643');
+    AddTelefono('6453-9876');
+    AddTelefono('6754-6305');
+    AddTelefono('6574-8054');
+    AddTelefono('6855-7150');
+    AddTelefono('6017-1577');
+    AddTelefono('6144-4851');
+    AddTelefono('6010-1444');
 END;
 /
 
 
 -- Carrito
 CREATE OR REPLACE PROCEDURE AddCarrito(
-    p_id_usuario IN Carrito.id_usuario%TYPE,
-    p_precio_total IN Carrito.precio_total%TYPE,
-    p_items_total IN Carrito.items_total%TYPE
+    p_id_usuario IN Carrito.id_usuario%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_id_usuario IS NULL OR p_precio_total IS NULL OR p_items_total IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_id_usuario IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO Carrito (
-            id_carrito, id_usuario, precio_total, items_total
-        ) VALUES (
-            seq_carrito.NEXTVAL, p_id_usuario, p_precio_total, p_items_total
-        );
+    INSERT INTO Carrito (
+        id_carrito, id_usuario, precio_total, items_total
+    ) VALUES (
+        seq_carrito.NEXTVAL, p_id_usuario, 0, 0
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddCarrito;
 /
 
 -- Inserciones
 BEGIN
-    AddCarrito(1, 0, 0);
-    AddCarrito(2, 0, 0);
+    AddCarrito(1);
+    AddCarrito(2);
+    AddCarrito(3);
+    AddCarrito(4);
+    AddCarrito(5);
+    AddCarrito(6);
 END;
 /
 
@@ -519,34 +515,34 @@ CREATE OR REPLACE PROCEDURE AddTipoTelefonoVendedor(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_id_vendedor IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_id_vendedor IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO tipos_telefonos_vendedor (
-            id_vendedor, id_telefono, tipo_telefono
-        ) VALUES (
-            p_id_vendedor, p_id_telefono, p_tipo_telefono
-        );
+    INSERT INTO tipos_telefonos_vendedor (
+        id_vendedor, id_telefono, tipo_telefono
+    ) VALUES (
+        p_id_vendedor, p_id_telefono, p_tipo_telefono
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTipoTelefonoVendedor;
 /
 
 -- Inserciones
 BEGIN
     AddTipoTelefonoVendedor(1, 1, 'Celular');
+    AddTipoTelefonoVendedor(2, 2, 'Celular');
+    AddTipoTelefonoVendedor(3, 3, 'Celular');
+    AddTipoTelefonoVendedor(4, 4, 'Celular');
+    AddTipoTelefonoVendedor(5, 5, 'Celular');
+    AddTipoTelefonoVendedor(6, 6, 'Celular');
 
 END;
 /
@@ -560,117 +556,34 @@ CREATE OR REPLACE PROCEDURE AddTipoTelefonoUsuario(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_id_usuario IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_id_usuario IS NULL OR p_id_telefono IS NULL OR p_tipo_telefono IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO tipos_telefonos_usuario (
-            id_usuario, id_telefono, tipo_telefono
-        ) VALUES (
-            p_id_usuario, p_id_telefono, p_tipo_telefono
-        );
+    INSERT INTO tipos_telefonos_usuario (
+        id_usuario, id_telefono, tipo_telefono
+    ) VALUES (
+        p_id_usuario, p_id_telefono, p_tipo_telefono
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddTipoTelefonoUsuario;
 /
 
 -- Inserciones
 BEGIN
-    AddTipoTelefonoUsuario(1, 2, 'Celular');
-END;
-/
-
-
--- Orden
-CREATE OR REPLACE PROCEDURE AddOrden(
-    p_precio_total IN Orden.precio_total%TYPE,
-    p_estado_orden IN Orden.estado_orden%TYPE,
-    p_id_carrito IN Orden.id_carrito%TYPE,
-    p_id_usuario IN Orden.id_usuario%TYPE
-) AS
-    e_ParametroNulo EXCEPTION;
-BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_precio_total IS NULL OR p_estado_orden IS NULL OR p_id_carrito IS NULL OR p_id_usuario IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
-
-        INSERT INTO Orden (
-            id_orden, precio_total, estado_orden, id_carrito, id_usuario
-        ) VALUES (
-            seq_orden.NEXTVAL, p_precio_total, p_estado_orden, p_id_carrito, p_id_usuario
-        );
-
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
-END AddOrden;
-/
-
--- Inseerciones
-BEGIN
-    AddOrden(5, 'Pendiente', 1, 1);
-    AddOrden(5, 'Enviada', 2, 2);
-END;
-/
-
-
--- Pago
-CREATE OR REPLACE PROCEDURE AddPago(
-    p_id_usuario IN Pago.id_usuario%TYPE,
-    p_modo_pago IN Pago.modo_pago%TYPE,
-    p_id_orden IN Pago.id_orden%TYPE
-) AS
-    e_ParametroNulo EXCEPTION;
-BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_id_usuario IS NULL OR p_modo_pago IS NULL OR p_id_orden IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
-
-        INSERT INTO Pago (
-            id_pago, id_usuario, modo_pago, fecha_pago, id_orden
-        ) VALUES (
-            seq_pago.NEXTVAL, p_id_usuario, p_modo_pago, SYSDATE, p_id_orden
-        );
-
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
-END AddPago;
-/
-
--- Inserciones
-BEGIN
-    AddPago(1, 'Tarjeta de Crédito', 1);
-    AddPago(2, 'Tarjeta de Crédito', 2);
+    AddTipoTelefonoVendedor(1, 7, 'Celular');
+    AddTipoTelefonoVendedor(2, 8, 'Celular');
+    AddTipoTelefonoVendedor(3, 9, 'Celular');
+    AddTipoTelefonoVendedor(4, 10, 'Celular');
+    AddTipoTelefonoVendedor(5, 11, 'Celular');
+    AddTipoTelefonoVendedor(6, 12, 'Celular');
 END;
 /
 
@@ -686,38 +599,70 @@ CREATE OR REPLACE PROCEDURE AddProducto(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        IF p_nombre_producto IS NULL OR p_descripcion_producto IS NULL OR p_marca IS NULL OR p_inventario IS NULL OR p_precio IS NULL OR p_id_categoria IS NULL OR p_id_vendedor IS NULL THEN
-            RAISE e_ParametroNulo;
-        END IF;
+    IF p_nombre_producto IS NULL OR p_descripcion_producto IS NULL OR p_marca IS NULL OR p_inventario IS NULL OR p_precio IS NULL OR p_id_categoria IS NULL OR p_id_vendedor IS NULL THEN
+        RAISE e_ParametroNulo;
+    END IF;
 
-        INSERT INTO Producto (
-            id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor
-        ) VALUES (
-            seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor
-        );
+    INSERT INTO Producto (
+        id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor
+    ) VALUES (
+        seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor
+    );
 
-    EXCEPTION
-        WHEN e_ParametroNulo THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
-        WHEN DUP_VAL_ON_INDEX THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
+EXCEPTION
+    WHEN e_ParametroNulo THEN
+        DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddProducto;
 /
 
--- Inserciones
 BEGIN
-    AddProducto('Teléfono Móvil', 'Teléfono de última generación', 'Samsung', 100, 599.99, 1, 1);
-    AddProducto('Teléfono Móvil', 'Teléfono de última generación', 'Samsung', 100, 599.99, 1, 1);
+    -- Categoria 1: Consolas y Videojuegos
+    AddProducto('PlayStation 5', 'Consola de última generación de Sony.', 'Sony', 50, 499.99, 1, 1);
+    AddProducto('Xbox Series X', 'Consola de Microsoft con gráficos 4K.', 'Microsoft', 30, 549.99, 1, 2);
+    AddProducto('FIFA 23', 'Videojuego de fútbol para PlayStation y Xbox.', 'EA Sports', 100, 59.99, 1, 3);
+    AddProducto('Nintendo Switch', 'Consola híbrida para jugar en casa y en movimiento.', 'Nintendo', 80, 299.99, 1, 4);
+    AddProducto('Call of Duty: Warzone', 'Videojuego de acción en primera persona.', 'Activision', 150, 29.99, 1, 5);
+
+    -- Categoria 2: Computadoras
+    AddProducto('MacBook Pro', 'Laptop potente para profesionales.', 'Apple', 20, 1999.99, 2, 4);
+    AddProducto('Alienware Aurora', 'PC de alta gama para gaming.', 'Dell', 15, 2499.99, 2, 5);
+    AddProducto('HP Pavilion', 'Laptop económica para uso diario.', 'HP', 50, 799.99, 2, 6);
+    AddProducto('Lenovo ThinkPad X1 Carbon', 'Laptop empresarial ultraligera y duradera.', 'Lenovo', 30, 1799.99, 2, 1);
+    AddProducto('ASUS ROG Strix G15', 'PC gaming con pantalla de alta tasa de refresco.', 'ASUS', 25, 2199.99, 2, 2);
+
+    -- Categoria 3: Telefonía
+    AddProducto('iPhone 13 Pro', 'Teléfono móvil con cámara mejorada.', 'Apple', 100, 1099.99, 3, 1);
+    AddProducto('Samsung Galaxy S22', 'Teléfono Android con pantalla AMOLED.', 'Samsung', 80, 999.99, 3, 2);
+    AddProducto('Google Pixel 7', 'Teléfono con excelente cámara y rendimiento.', 'Google', 70, 899.99, 3, 3);
+    AddProducto('OnePlus 10 Pro', 'Teléfono con cámara Hasselblad y carga ultra rápida.', 'OnePlus', 60, 1199.99, 3, 4);
+    AddProducto('Xiaomi Mi 12', 'Teléfono con tecnología de carga inalámbrica de alta potencia.', 'Xiaomi', 50, 999.99, 3, 5);
+
+    -- Categoria 4: Televisores
+    AddProducto('Sony Bravia 4K', 'Televisor 4K con tecnología HDR.', 'Sony', 40, 899.99, 4, 4);
+    AddProducto('LG OLED C1', 'Televisor OLED con colores vibrantes.', 'LG', 30, 1499.99, 4, 5);
+    AddProducto('Samsung QLED Q80A', 'Televisor QLED con modo juego.', 'Samsung', 50, 1199.99, 4, 6);
+    AddProducto('TCL 6-Series 4K', 'Televisor 4K con Roku integrado.', 'TCL', 35, 799.99, 4, 2);
+    AddProducto('Hisense U8G Quantum Series', 'Televisor con tecnología Quantum Dot para colores brillantes.', 'Hisense', 45, 1399.99, 4, 3);
+
+    -- Categoria 5: Audio
+    AddProducto('Bose QuietComfort 45', 'Auriculares con cancelación de ruido.', 'Bose', 120, 299.99, 5, 1);
+    AddProducto('Sonos Arc', 'Barra de sonido premium para cine en casa.', 'Sonos', 60, 799.99, 5, 2);
+    AddProducto('JBL Flip 6', 'Altavoz Bluetooth resistente al agua.', 'JBL', 200, 129.99, 5, 3);
+    AddProducto('Sennheiser HD 660 S', 'Auriculares de alta fidelidad con diseño abierto.', 'Sennheiser', 80, 399.99, 5, 5);
+    AddProducto('Harman Kardon Citation One', 'Altavoz inteligente con sonido premium.', 'Harman Kardon', 100, 199.99, 5, 6);
+
+    -- Categoria 6: Accesorios
+    AddProducto('Logitech MX Master 3', 'Mouse ergonómico para productividad.', 'Logitech', 300, 99.99, 6, 4);
+    AddProducto('Anker PowerCore 20000', 'Batería externa de alta capacidad.', 'Anker', 150, 49.99, 6, 5);
+    AddProducto('Samsung EVO 970', 'SSD rápido para almacenamiento.', 'Samsung', 80, 149.99, 6, 6);
+    AddProducto('Razer DeathAdder V2', 'Mouse gaming con sensor óptico avanzado.', 'Razer', 200, 79.99, 6, 1);
+    AddProducto('Corsair K70 RGB MK.2', 'Teclado mecánico gaming con retroiluminación RGB.', 'Corsair', 150, 149.99, 6, 3);
 END;
 /
-
 
 -- Resenhas
 CREATE OR REPLACE PROCEDURE AddResenha(
@@ -728,8 +673,6 @@ CREATE OR REPLACE PROCEDURE AddResenha(
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
-    SAVEPOINT inicio_transaccion;
-    BEGIN
     IF p_id_usuario IS NULL OR p_calificacion IS NULL OR p_descripcion IS NULL OR p_id_producto IS NULL THEN
         RAISE e_ParametroNulo;
     END IF;
@@ -742,13 +685,10 @@ BEGIN
 
 EXCEPTION
     WHEN e_ParametroNulo THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Los parámetros obligatorios no aceptan valores nulos');
     WHEN DUP_VAL_ON_INDEX THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Llave primaria duplicada en la inserción');
     WHEN OTHERS THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion;
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddResenha;
 /
@@ -756,234 +696,295 @@ END AddResenha;
 -- Inserciones
 
 BEGIN
-    AddResenha(1, '5', 'Excelente producto', 1);
+    -- Reseñas para productos en la categoría 1: Consolas y Videojuegos
+    AddResenha(1, 5, '¡Excelente consola! Me encanta la calidad gráfica y la velocidad.', 1); 
+    AddResenha(2, 4, 'Buena consola, pero podría mejorar en la duración de la batería.', 4); 
+    AddResenha(3, 4, 'Juego emocionante con gráficos impresionantes. Recomendado.', 3); 
+
+    -- Reseñas para productos en la categoría 2: Computadoras
+    AddResenha(4, 5, 'La MacBook Pro es perfecta para mi trabajo creativo. Rápida y confiable.', 6); 
+    AddResenha(5, 3, 'El Alienware Aurora tiene un rendimiento increíble, pero el precio es alto.', 7); 
+    AddResenha(6, 4, 'HP Pavilion es una buena opción para tareas básicas. Buen valor por el dinero.', 8); 
+
+    -- Reseñas para productos en la categoría 3: Telefonía
+    AddResenha(1, 5, 'iPhone 13 Pro tiene una cámara espectacular y un diseño elegante.', 11); 
+    AddResenha(2, 4, 'El Galaxy S22 tiene una pantalla brillante y funciona sin problemas.', 12); 
+    AddResenha(3, 4, 'Pixel 7 es rápido y tiene una gran cámara. Perfecto para fotos.', 13); 
+
+    -- Reseñas para productos en la categoría 4: Televisores
+    AddResenha(4, 5, 'Sony Bravia 4K ofrece colores vibrantes y excelente calidad de imagen.', 16); 
+    AddResenha(5, 4, 'El LG OLED C1 tiene negros profundos y una experiencia de visualización envolvente.', 17); 
+    AddResenha(6, 3, 'QLED Q80A es bueno para juegos, pero el sonido podría ser mejor.', 18); 
+
+    -- Reseñas para productos en la categoría 5: Audio
+    AddResenha(1, 5, 'Bose QuietComfort 45 tiene una cancelación de ruido excepcional y sonido claro.', 21); 
+    AddResenha(2, 4, 'Sonos Arc es perfecto para cine en casa. Audio envolvente y fácil de configurar.', 22); 
+    AddResenha(3, 3, 'JBL Flip 6 tiene buen sonido y es resistente al agua, ideal para actividades al aire libre.', 23); 
+
+    -- Reseñas para productos en la categoría 6: Accesorios
+    AddResenha(4, 5, 'Logitech MX Master 3 es cómodo y preciso. Perfecto para largas sesiones de trabajo.', 26); 
+    AddResenha(5, 4, 'Anker PowerCore 20000 ofrece mucha carga en un diseño compacto. Muy útil.', 27); 
+    AddResenha(6, 3, 'Samsung EVO 970 es rápido, pero esperaba un poco más de rendimiento.', 28); 
 END;
 /
 
 -- Procedimiento para agregar productos al carrito
 
-CREATE OR REPLACE PROCEDURE AddProductoCarrito(
-    p_id_orden IN OrdenItem.id_orden%TYPE,
-    p_id_carrito IN Carrito.id_carrito%TYPE,
-    p_id_producto IN OrdenItem.id_producto%TYPE,
+CREATE OR REPLACE PROCEDURE AgregarProductoCarrito (
+    p_id_carrito IN NUMBER,
+    p_id_producto IN NUMBER,
     p_cantidad IN NUMBER
-) AS
-    v_version_actual NUMBER;
+) IS
+    v_precio_producto NUMBER;
+    v_inventario_producto NUMBER;
 BEGIN
-    SAVEPOINT inicio_transaccion;
+    -- Obtener precio e inventario del producto
+    SELECT precio, inventario INTO v_precio_producto, v_inventario_producto
+    FROM Producto
+    WHERE id_producto = p_id_producto;
+
+    -- Validar que el inventario no sea negativo
+    IF v_inventario_producto < p_cantidad THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Inventario insuficiente para el producto.');
+    END IF;
+
+    -- Actualizar inventario del producto
+    UPDATE Producto
+    SET inventario = inventario - p_cantidad
+    WHERE id_producto = p_id_producto;
+
+    -- Verificar si el producto ya está en el carrito
     BEGIN
-        -- Intentar insertar el producto en la tabla OrdenItem
-        INSERT INTO OrdenItem (
-            id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio
-        ) VALUES (
-            p_id_orden, p_id_producto, p_cantidad,
-            (SELECT precio FROM Producto WHERE id_producto = p_id_producto),
-            SYSDATE, SYSDATE + 1
-        );
-
--- Control de concurrencia optimista
-        SELECT version INTO v_version_actual
-        FROM Producto
-        WHERE id_producto = p_id_producto;
-
-        UPDATE Producto
-        SET inventario = inventario - p_cantidad,
-            version = version + 1  -- Incrementar la versión
-        WHERE id_producto = p_id_producto
-          AND version = v_version_actual; -- Verificar la versión
+        UPDATE CarritoProducto
+        SET cantidad = cantidad + p_cantidad
+        WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
 
         IF SQL%ROWCOUNT = 0 THEN
-            RAISE_APPLICATION_ERROR(-20002, 'El producto ha sido modificado por otro usuario.');
+            -- Si el producto no está en el carrito, insertarlo
+            INSERT INTO CarritoProducto (id_carrito, id_producto, cantidad)
+            VALUES (p_id_carrito, p_id_producto, p_cantidad);
         END IF;
-    EXCEPTION
-        WHEN DUP_VAL_ON_INDEX THEN
-            -- Si ya existe, actualizar la cantidad del producto en OrdenItem
-            UPDATE OrdenItem
-            SET cantidad = cantidad + p_cantidad
-            WHERE id_orden = p_id_orden AND id_producto = p_id_producto;
-
-            -- Control de concurrencia optimista (en la actualización)
-            SELECT version INTO v_version_actual
-            FROM Producto
-            WHERE id_producto = p_id_producto;
-
-            UPDATE Producto
-            SET inventario = inventario - p_cantidad,
-                version = version + 1  -- Incrementar la versión
-            WHERE id_producto = p_id_producto
-              AND version = v_version_actual; -- Verificar la versión
-
-            IF SQL%ROWCOUNT = 0 THEN
-                RAISE_APPLICATION_ERROR(-20002, 'El producto ha sido modificado por otro usuario.');
-            END IF;
     END;
 
-    -- Actualizar la cantidad total de artículos y el precio total del carrito
+    -- Actualizar totales del carrito
     UPDATE Carrito
-    SET items_total = items_total + p_cantidad,
-        precio_total = precio_total + (p_cantidad * (SELECT precio FROM Producto WHERE id_producto = p_id_producto))
+    SET precio_total = precio_total + (v_precio_producto * p_cantidad),
+        items_total = items_total + p_cantidad
     WHERE id_carrito = p_id_carrito;
+
+    COMMIT;
+
 EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20003, 'Error: Producto duplicado en el carrito.');
     WHEN NO_DATA_FOUND THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
-        DBMS_OUTPUT.PUT_LINE('No se encontró el registro');
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20004, 'Error: Producto no encontrado.');
     WHEN OTHERS THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion;
-        DBMS_OUTPUT.PUT_LINE('Ocurrió un error al agregar el producto al carrito: ' || SQLERRM);
-END AddProductoCarrito;
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20005, 'Error inesperado: ' || SQLERRM);
+END AgregarProductoCarrito;
 /
 
+
 BEGIN
-    AddProductoCarrito(1,1,1,3);
+    AgregarProductoCarrito(1,1,1);
+    AgregarProductoCarrito(1,3,1);
+    AgregarProductoCarrito(1,5,1);
 END;
 /
 
 -- Procedimiento para eliminar del carrito
 
-CREATE OR REPLACE PROCEDURE RemoveProductoCarrito(
-    p_id_carrito IN Carrito.id_carrito%TYPE,
-    p_id_producto IN Producto.id_producto%TYPE,
+CREATE OR REPLACE PROCEDURE EliminarProductoCarrito (
+    p_id_carrito IN NUMBER,
+    p_id_producto IN NUMBER,
     p_cantidad IN NUMBER
-) AS
-    v_id_orden OrdenItem.id_orden%TYPE;
+) IS
+    v_precio_producto NUMBER;
     v_cantidad_actual NUMBER;
-    v_producto_precio NUMBER;
-    v_items_total NUMBER;
-    v_precio_total NUMBER;
-    v_version_actual NUMBER; -- Variable para la versión actual
 BEGIN
-    -- Iniciar transacción
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        -- Obtener la orden asociada al carrito
-        SELECT id_orden INTO v_id_orden
-        FROM Orden
-        WHERE id_carrito = p_id_carrito
-        AND ROWNUM = 1; -- Asumiendo que hay una sola orden activa por carrito
+    -- Obtener precio del producto
+    SELECT precio INTO v_precio_producto
+    FROM Producto
+    WHERE id_producto = p_id_producto;
 
-        -- Obtener la cantidad actual del producto en la orden
-        SELECT cantidad INTO v_cantidad_actual
-        FROM OrdenItem
-        WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
+    -- Obtener la cantidad actual del producto en el carrito
+    SELECT cantidad INTO v_cantidad_actual
+    FROM CarritoProducto
+    WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
 
-        -- Obtener el precio del producto
-        SELECT precio INTO v_producto_precio
-        FROM Producto
-        WHERE id_producto = p_id_producto;
+    -- Validar que la cantidad a eliminar no sea mayor que la cantidad actual
+    IF v_cantidad_actual < p_cantidad THEN
+        RAISE_APPLICATION_ERROR(-20002, 'La cantidad a eliminar es mayor que la cantidad actual en el carrito.');
+    END IF;
 
-        IF v_cantidad_actual <= p_cantidad THEN
-            -- Si la cantidad actual es menor o igual a la cantidad a eliminar, eliminar la fila
-            DELETE FROM OrdenItem
-            WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
-        ELSE
-            -- Si la cantidad actual es mayor que la cantidad a eliminar, actualizar la cantidad
-            UPDATE OrdenItem
-            SET cantidad = cantidad - p_cantidad
-            WHERE id_orden = v_id_orden AND id_producto = p_id_producto;
-        END IF;
+    -- Actualizar inventario del producto
+    UPDATE Producto
+    SET inventario = inventario + p_cantidad
+    WHERE id_producto = p_id_producto;
 
-        -- Control de concurrencia optimista
-        SELECT version INTO v_version_actual
-        FROM Producto
-        WHERE id_producto = p_id_producto;
+    -- Actualizar o eliminar el producto del carrito
+    IF v_cantidad_actual = p_cantidad THEN
+        DELETE FROM CarritoProducto
+        WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
+    ELSE
+        UPDATE CarritoProducto
+        SET cantidad = cantidad - p_cantidad
+        WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
+    END IF;
 
-        -- Actualizar el inventario y la versión del producto
-        UPDATE Producto
-        SET inventario = inventario + p_cantidad,
-            version = version + 1  -- Incrementar la versión
-        WHERE id_producto = p_id_producto
-        AND version = v_version_actual; -- Verificar la versión
+    -- Actualizar totales del carrito
+    UPDATE Carrito
+    SET precio_total = precio_total - (v_precio_producto * p_cantidad),
+        items_total = items_total - p_cantidad
+    WHERE id_carrito = p_id_carrito;
 
-        IF SQL%ROWCOUNT = 0 THEN
-            RAISE_APPLICATION_ERROR(-20002, 'El producto ha sido modificado por otro usuario.');
-        END IF;
+    COMMIT;
 
-        -- Obtener los valores actuales del carrito
-        SELECT items_total, precio_total INTO v_items_total, v_precio_total
-        FROM Carrito
-        WHERE id_carrito = p_id_carrito;
-
-        -- Verificar que el carrito no quede con valores negativos
-        IF v_items_total - p_cantidad < 0 THEN
-            UPDATE Carrito
-            SET items_total = 0
-            WHERE id_carrito = p_id_carrito;
-        ELSE
-            UPDATE Carrito
-            SET items_total = items_total - p_cantidad
-            WHERE id_carrito = p_id_carrito;
-        END IF;
-
-        IF v_precio_total - (p_cantidad * v_producto_precio) < 0 THEN
-            UPDATE Carrito
-            SET precio_total = 0
-            WHERE id_carrito = p_id_carrito;
-        ELSE
-            UPDATE Carrito
-            SET precio_total = precio_total - (p_cantidad * v_producto_precio)
-            WHERE id_carrito = p_id_carrito;
-        END IF;
-
-        -- Confirmar transacción si todo ha ido bien
-        COMMIT;
 EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20003, 'Error: Producto duplicado en la tabla.');
     WHEN NO_DATA_FOUND THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
-        RAISE_APPLICATION_ERROR(-20003, 'No se encontró el producto en el carrito.');
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20004, 'Error: Producto o Carrito no encontrado.');
     WHEN OTHERS THEN
-        ROLLBACK TO SAVEPOINT inicio_transaccion; -- Revertir en caso de error
-        RAISE_APPLICATION_ERROR(-20001, 'Ocurrió un error al eliminar el producto del carrito: ' || SQLERRM);
-END RemoveProductoCarrito;
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20005, 'Error inesperado: ' || SQLERRM);
+END EliminarProductoCarrito;
 /
 
-
 BEGIN
-    RemoveProductoCarrito(1,1,1);
+    EliminarProductoCarrito(1,1,1);
 END;
 /
 
--- Transacción para procesar el pago y actualizar el estado de la orden
+-- Transacción para generar la orden
 
-CREATE OR REPLACE PROCEDURE ProcesarPagoOrden(
-    p_id_pago IN Pago.id_pago%TYPE,
-    p_modo_pago IN Pago.modo_pago%TYPE
-) AS
-    v_id_orden Pago.id_orden%TYPE;
+CREATE OR REPLACE PROCEDURE CrearOrden (
+    p_id_carrito IN NUMBER
+) IS
+    v_id_orden NUMBER;
+    v_id_usuario NUMBER;
+    v_precio_total NUMBER;
+    v_estado_orden VARCHAR2(255) := 'Pendiente';
 BEGIN
-    -- Iniciar transacción
-    SAVEPOINT inicio_transaccion;
-    BEGIN
-        SELECT id_orden INTO v_id_orden
-        FROM Pago
-        WHERE id_pago = p_id_pago;
-        
-        UPDATE Pago
-        SET modo_pago = p_modo_pago, fecha_pago = SYSDATE
-        WHERE id_pago = p_id_pago;
-        
-        UPDATE Orden
-        SET estado_orden = 'Enviado'
-        WHERE id_orden = v_id_orden;
-        
-        COMMIT;
-    EXCEPTION
-        WHEN OTHERS THEN
-            ROLLBACK TO SAVEPOINT inicio_transaccion;
-            DBMS_OUTPUT.PUT_LINE('Error en la transacción: ' || SQLERRM);
-    END;
-END ProcesarPagoOrden;
+    -- Obtener id_usuario y precio_total del carrito
+    SELECT id_usuario, precio_total
+    INTO v_id_usuario, v_precio_total
+    FROM Carrito
+    WHERE id_carrito = p_id_carrito;
+
+    -- Crear nueva orden
+    INSERT INTO Orden (id_orden, id_carrito, id_usuario, estado_orden, precio_total)
+    VALUES (seq_orden.NEXTVAL, p_id_carrito, v_id_usuario, v_estado_orden, v_precio_total)
+    RETURNING id_orden INTO v_id_orden;
+
+    -- Mover productos del carrito a OrdenItem
+    FOR r IN (
+        SELECT cp.id_producto, cp.cantidad, p.precio
+        FROM CarritoProducto cp
+        JOIN Producto p ON cp.id_producto = p.id_producto
+        WHERE cp.id_carrito = p_id_carrito
+    ) LOOP
+        INSERT INTO OrdenItem (id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio)
+        VALUES (v_id_orden, r.id_producto, r.cantidad, r.precio, SYSDATE, NULL);
+    END LOOP;
+
+    -- Vaciar carrito
+    DELETE FROM CarritoProducto
+    WHERE id_carrito = p_id_carrito;
+
+    -- Actualizar totales del carrito
+    UPDATE Carrito
+    SET precio_total = 0, items_total = 0
+    WHERE id_carrito = p_id_carrito;
+
+    COMMIT;
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20003, 'Error: Orden duplicada.');
+    WHEN NO_DATA_FOUND THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20004, 'Error: Carrito no encontrado.');
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20005, 'Error inesperado: ' || SQLERRM);
+END CrearOrden;
+/
+
+
+BEGIN
+    CrearOrden(1);
+END;
+/
+
+
+-- Transaccion para realizar el pago
+
+CREATE OR REPLACE PROCEDURE RealizarPago (
+    p_id_orden IN NUMBER,
+    p_monto_pagado IN NUMBER,
+    p_modo_pago IN VARCHAR2
+) IS
+    v_precio_total NUMBER;
+    v_id_usuario NUMBER;
+BEGIN
+    -- Obtener el total de la orden y el id del usuario
+    SELECT precio_total, id_usuario INTO v_precio_total, v_id_usuario
+    FROM Orden
+    WHERE id_orden = p_id_orden;
+
+    -- Validar que el monto pagado coincida con el total de la orden
+    IF p_monto_pagado != v_precio_total THEN
+        RAISE_APPLICATION_ERROR(-20002, 'El monto pagado no coincide con el total de la orden.');
+    END IF;
+
+    -- Actualizar estado de la orden a Pagado
+    UPDATE Orden
+    SET estado_orden = 'Enviado'
+    WHERE id_orden = p_id_orden;
+
+    -- Actualizar fecha de envio de ordenitem a un dia despues de haber pagado
+    UPDATE OrdenItem
+    SET fecha_envio = SYSDATE + 1
+    WHERE id_orden = p_id_orden;
+
+    -- Registrar el pago
+    INSERT INTO Pago (id_pago, id_usuario, modo_pago, fecha_pago, id_orden, monto_pagado, estado_pago)
+    VALUES (seq_pago.NEXTVAL, v_id_usuario, p_modo_pago, SYSDATE, p_id_orden, p_monto_pagado, 'Pagado');
+
+    COMMIT;
+
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20003, 'Error: Pago duplicado.');
+    WHEN NO_DATA_FOUND THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20004, 'Error: Orden no encontrada.');
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE_APPLICATION_ERROR(-20005, 'Error inesperado: ' || SQLERRM);
+END RealizarPago;
 /
 
 BEGIN
-    ProcesarPagoOrden(1, 'Tarjeta de Crédito');
+    RealizarPago(2, 299.97, 'Tarjeta de Crédito');
 END;
 /
 
 
 -- Vista de inventario de productos
 
-CREATE OR REPLACE VIEW v_product_inventory AS
-SELECT p.id_producto, p.nombre_producto, p.marca, p.inventario, p.precio, c.nombre_categoria
+CREATE OR REPLACE VIEW VistaProducto AS
+SELECT p.nombre_producto AS "Producto", p.inventario AS "Stock", p.precio AS "Precio", c.nombre_categoria AS "Categoria"
 FROM Producto p
 JOIN Categoria c ON p.id_categoria = c.id_categoria;
+
+SELECT *FROM VistaProducto;
 
