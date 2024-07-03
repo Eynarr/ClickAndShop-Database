@@ -986,5 +986,24 @@ SELECT p.nombre_producto AS "Producto", p.inventario AS "Stock", p.precio AS "Pr
 FROM Producto p
 JOIN Categoria c ON p.id_categoria = c.id_categoria;
 
-SELECT *FROM VistaProducto;
+SELECT * FROM VistaProducto;
 
+-- Vista de informacion de compradores
+
+CREATE OR REPLACE VIEW v_comprador AS
+SELECT c.id_usuario, c.nombre_usuario, c.apellido_usuario, c.email_usuario, c.fecha_nacimiento_usuario, c.usu_edad, c.provincia, c.distrito, c.corregimiento, c.calle, c.numero_casa, t.telefono, x.tipo_telefono
+FROM tipos_telefonos_usuario x
+JOIN UsuarioComprador c ON x.id_usuario = c.id_usuario
+JOIN Telefono t ON t.id_telefono = x.id_telefono;
+
+SQL> SELECT * FROM v_comprador;
+
+-- Vista de informacion de vendedores
+
+CREATE OR REPLACE VIEW v_vendedor AS
+SELECT v.id_vendedor, v.nombre_vendedor, v.ventas_totales, v.email_vendedor, t.telefono, x.tipo_telefono
+FROM tipos_telefonos_vendedor x
+JOIN Vendedor v ON x.id_vendedor = v.id_vendedor
+JOIN Telefono t ON t.id_telefono = x.id_telefono;
+
+SELECT * FROM v_vendedor;
