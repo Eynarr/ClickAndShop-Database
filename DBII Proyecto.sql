@@ -164,6 +164,10 @@ CREATE SEQUENCE seq_auditoria START WITH 1 INCREMENT BY 1;
 
 SET SERVEROUTPUT ON;
 
+
+-- Actualizaciones a las tablas
+
+
 -- Actualizar tabla UsuarioComprador
 
 ALTER TABLE UsuarioComprador ADD usu_edad NUMBER DEFAULT 0 NOT NULL;
@@ -625,7 +629,7 @@ BEGIN
     AddProducto('Xbox Series X', 'Consola de Microsoft con gráficos 4K.', 'Microsoft', 30, 549.99, 1, 2);
     AddProducto('FIFA 23', 'Videojuego de fútbol para PlayStation y Xbox.', 'EA Sports', 100, 59.99, 1, 3);
     AddProducto('Nintendo Switch', 'Consola híbrida para jugar en casa y en movimiento.', 'Nintendo', 80, 299.99, 1, 4);
-    AddProducto('Call of Duty: Warzone', 'Videojuego de acción en primera persona.', 'Activision', 150, 29.99, 1, 5);
+    AddProducto('Call of Duty: Modern Warfare', 'Videojuego de acción en primera persona.', 'Activision', 150, 29.99, 1, 5);
 
     -- Categoria 2: Computadoras
     AddProducto('MacBook Pro', 'Laptop potente para profesionales.', 'Apple', 20, 1999.99, 2, 4);
@@ -787,9 +791,10 @@ EXCEPTION
 END AgregarProductoCarrito;
 /
 
+-- Llamada al procedimiento 
 
 BEGIN
-    AgregarProductoCarrito(1,1,1);
+    AgregarProductoCarrito(1,1,2);
     AgregarProductoCarrito(1,3,1);
     AgregarProductoCarrito(1,5,1);
 END;
@@ -856,6 +861,8 @@ EXCEPTION
 END EliminarProductoCarrito;
 /
 
+-- Llamada al procedimiento
+
 BEGIN
     EliminarProductoCarrito(1,1,1);
 END;
@@ -917,6 +924,7 @@ EXCEPTION
 END CrearOrden;
 /
 
+-- Llamada la procedimiento
 
 BEGIN
     CrearOrden(1);
@@ -933,23 +941,29 @@ CREATE OR REPLACE PROCEDURE RealizarPago (
 ) IS
     v_precio_total NUMBER;
     v_id_usuario NUMBER;
+    v_estado_orden VARCHAR2(20);
 BEGIN
-    -- Obtener el total de la orden y el id del usuario
-    SELECT precio_total, id_usuario INTO v_precio_total, v_id_usuario
+    -- Obtener el total de la orden, el id del usuario y el estado de la orden
+    SELECT precio_total, id_usuario, estado_orden INTO v_precio_total, v_id_usuario, v_estado_orden
     FROM Orden
     WHERE id_orden = p_id_orden;
+
+    -- Validar que la orden no haya sido pagada
+    IF v_estado_orden = 'Pagada' THEN
+        RAISE_APPLICATION_ERROR(-20006, 'La orden ya ha sido pagada.');
+    END IF;
 
     -- Validar que el monto pagado coincida con el total de la orden
     IF p_monto_pagado != v_precio_total THEN
         RAISE_APPLICATION_ERROR(-20002, 'El monto pagado no coincide con el total de la orden.');
     END IF;
 
-    -- Actualizar estado de la orden a Pagado
+    -- Actualizar estado de la orden a Enviada
     UPDATE Orden
-    SET estado_orden = 'Enviado'
+    SET estado_orden = 'Enviada'
     WHERE id_orden = p_id_orden;
 
-    -- Actualizar fecha de envio de ordenitem a un dia despues de haber pagado
+    -- Actualizar fecha de envio de OrdenItem a un día después de haber pagado
     UPDATE OrdenItem
     SET fecha_envio = SYSDATE + 1
     WHERE id_orden = p_id_orden;
@@ -974,9 +988,164 @@ END RealizarPago;
 /
 
 BEGIN
-    RealizarPago(1, 89.98, 'Tarjeta de Crédito');
+    RealizarPago(1, 589.97, 'Tarjeta de Crédito');
 END;
 /
+
+-- Cursor para imprimir el resumen del pedido
+
+CREATE OR REPLACE PROCEDURE ResumenOrden(
+    p_id_orden IN NUMBER
+) IS
+    CURSOR order_cursor IS
+        SELECT o.id_orden, o.id_carrito, o.estado_orden, o.precio_total,
+               oi.id_producto, oi.cantidad, oi.precio, p.nombre_producto
+        FROM Orden o
+        JOIN OrdenItem oi ON o.id_orden = oi.id_orden
+        JOIN Producto p ON oi.id_producto = p.id_producto
+        WHERE o.id_orden = p_id_orden;
+
+    v_order_row order_cursor%ROWTYPE;
+    v_primera_fila BOOLEAN := TRUE;
+    v_precio_total NUMBER;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Resumen del pedido:');
+    OPEN order_cursor;
+    LOOP
+        FETCH order_cursor INTO v_order_row;
+        EXIT WHEN order_cursor%NOTFOUND;
+        
+        -- Imprimir el encabezado del pedido
+        IF v_primera_fila THEN
+            DBMS_OUTPUT.PUT_LINE('ID Orden: ' || v_order_row.id_orden);
+            DBMS_OUTPUT.PUT_LINE('ID Carrito: ' || v_order_row.id_carrito);
+            DBMS_OUTPUT.PUT_LINE('Estado de orden: ' || v_order_row.estado_orden);
+            v_precio_total := v_order_row.precio_total; -- Guardar el precio total
+            v_primera_fila := FALSE;
+        END IF;
+        
+        -- Imprimir los productos del pedido
+        DBMS_OUTPUT.PUT_LINE('Nombre del producto: ' || v_order_row.nombre_producto);
+        DBMS_OUTPUT.PUT_LINE('Precio del producto: ' || v_order_row.precio);
+        DBMS_OUTPUT.PUT_LINE('Cantidad: ' || v_order_row.cantidad);
+    END LOOP;
+    CLOSE order_cursor;
+    
+    -- Imprimir el precio total al final del pedido
+    IF NOT v_primera_fila THEN
+        DBMS_OUTPUT.PUT_LINE('------------------------------------------------');
+        DBMS_OUTPUT.PUT_LINE('Precio total: ' || v_precio_total);
+    END IF;
+    
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encontraron datos para la Orden ID: ' || p_id_orden);
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+END ResumenOrden;
+/
+
+-- Llamada al procedimiento
+
+BEGIN
+    ResumenOrden(1);
+END;
+/
+
+-- Procedimiento para actualizar el inventario
+
+CREATE OR REPLACE PROCEDURE ActualizarInventarioProductos(
+    p_incremento IN NUMBER
+) IS
+    v_count NUMBER;
+BEGIN
+    -- Contar el numero de productos con inventario bajo
+    SELECT COUNT(*)
+    INTO v_count
+    FROM Producto
+    WHERE inventario <= 30; -- Valor para considerar inventario bajo
+
+    IF v_count = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('No se encontraron productos con inventario bajo.');
+    ELSE
+        DECLARE
+            CURSOR cursor_inventario_bajo IS
+                SELECT id_producto, nombre_producto, inventario
+                FROM Producto
+                WHERE inventario <= 30; -- Valor para considerar inventario bajo
+
+            v_inventario_bajo_row cursor_inventario_bajo%ROWTYPE;
+        BEGIN
+            OPEN cursor_inventario_bajo;
+            LOOP
+                FETCH cursor_inventario_bajo INTO v_inventario_bajo_row;
+                EXIT WHEN cursor_inventario_bajo%NOTFOUND;
+
+                -- Actualizar el inventario del producto
+                UPDATE Producto
+                SET inventario = inventario + p_incremento
+                WHERE id_producto = v_inventario_bajo_row.id_producto;
+
+                DBMS_OUTPUT.PUT_LINE('Inventario actualizado para el producto: ' || v_inventario_bajo_row.nombre_producto || ' con ID: ' || v_inventario_bajo_row.id_producto);
+            END LOOP;
+            CLOSE cursor_inventario_bajo;
+            COMMIT;
+        END;
+    END IF;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encontraron productos con inventario bajo.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+END ActualizarInventarioProductos;
+/
+
+-- Llamada al procedimiento
+
+BEGIN
+    ActualizarInventarioProductos(50);
+END;
+/
+
+-- Procedimiento para actualizar el precio de los productos
+
+CREATE OR REPLACE PROCEDURE ActualizarPrecioProductos(
+    p_porcentaje IN NUMBER
+) IS
+    CURSOR cursor_producto IS
+        SELECT id_producto, precio
+        FROM Producto;
+
+    v_producto_row cursor_producto%ROWTYPE;
+BEGIN
+    OPEN cursor_producto;
+    LOOP
+        FETCH cursor_producto INTO v_producto_row;
+        EXIT WHEN cursor_producto%NOTFOUND;
+        
+        -- Actualizar el precio del producto y redondear a dos decimales
+        UPDATE Producto
+        SET precio = ROUND(precio * (1 + p_porcentaje / 100), 2)
+        WHERE id_producto = v_producto_row.id_producto;
+
+        DBMS_OUTPUT.PUT_LINE('Precio actualizado para el Producto ID: ' || v_producto_row.id_producto);
+    END LOOP;
+    CLOSE cursor_producto;
+    COMMIT;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('No se encontraron productos.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+END ActualizarPrecioProductos;
+/
+
+BEGIN
+    ActualizarPrecioProductos(3);
+END;
+/
+
+-- Vistas
 
 
 -- Vista de inventario de productos
@@ -986,40 +1155,83 @@ SELECT p.nombre_producto AS "Producto", p.inventario AS "Stock", p.precio AS "Pr
 FROM Producto p
 JOIN Categoria c ON p.id_categoria = c.id_categoria;
 
-SELECT * FROM VistaProducto;
+-- Llamada a la vista
 
--- Vista de informacion de compradores
+SELECT *FROM VistaProducto;
 
-CREATE OR REPLACE VIEW v_comprador AS
-SELECT c.id_usuario, c.nombre_usuario, c.apellido_usuario, c.email_usuario, c.fecha_nacimiento_usuario, c.usu_edad, c.provincia, c.distrito, c.corregimiento, c.calle, c.numero_casa, t.telefono, x.tipo_telefono
-FROM tipos_telefonos_usuario x
-JOIN UsuarioComprador c ON x.id_usuario = c.id_usuario
-JOIN Telefono t ON t.id_telefono = x.id_telefono;
+-- Vista de las reseñas de los usuarios
 
-SQL> SELECT * FROM v_comprador;
+CREATE OR REPLACE VIEW VistaResenhasUsuario AS
+SELECT 
+    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
+    p.nombre_producto AS "Producto",
+    r.calificacion AS "Calificacion",
+    r.descripcion AS "Descripcion"
+FROM 
+    Resenhas r
+JOIN 
+    UsuarioComprador u ON r.id_usuario = u.id_usuario
+JOIN 
+    Producto p ON r.id_producto = p.id_producto;
 
--- Vista de informacion de vendedores
+-- Consulta de la vista
+SELECT * FROM VistaResenhasUsuario;
 
-CREATE OR REPLACE VIEW v_vendedor AS
-SELECT v.id_vendedor, v.nombre_vendedor, v.ventas_totales, v.email_vendedor, t.telefono, x.tipo_telefono
-FROM tipos_telefonos_vendedor x
-JOIN Vendedor v ON x.id_vendedor = v.id_vendedor
-JOIN Telefono t ON t.id_telefono = x.id_telefono;
 
-SELECT * FROM v_vendedor;
+-- Vista del carrito del cliente
 
--- Vista de ordenes de clientes
-CREATE OR REPLACE VIEW v_ordenComprador AS
-SELECT o.id_orden, o.precio_total, o.estado_orden, o.id_carrito, c.id_usuario, c.nombre_usuario, c.apellido_usuario, c.email_usuario, c.provincia, c.distrito, c.corregimiento, c.calle, c.numero_casa
-FROM Orden o
-JOIN UsuarioComprador c ON o.id_usuario = c.id_usuario;
+CREATE OR REPLACE VIEW VistaCarritoCliente AS
+SELECT 
+    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
+    p.nombre_producto AS "Producto",
+    cp.cantidad AS "Cantidad",
+    p.precio AS "Precio",
+    (cp.cantidad * p.precio) AS "Total"
+FROM 
+    CarritoProducto cp
+JOIN 
+    Carrito c ON cp.id_carrito = c.id_carrito
+JOIN 
+    UsuarioComprador u ON c.id_usuario = u.id_usuario
+JOIN 
+    Producto p ON cp.id_producto = p.id_producto;
 
-SELECT * FROM v_ordenComprador;
+-- Consulta de la vista
+SELECT * FROM VistaCarritoCliente;
 
--- Vista de pagos de clientes
-CREATE OR REPLACE VIEW v_pagoComprador AS
-SELECT p.id_pago, p.modo_pago, p.fecha_pago, p.id_orden, c.id_usuario, c.nombre_usuario, c.apellido_usuario, c.email_usuario
-FROM Pago p
-JOIN UsuarioComprador c ON p.id_usuario = c.id_usuario;
 
-SELECT * FROM v_pagoComprador;
+-- Vista de las ordenes por cliente
+
+CREATE OR REPLACE VIEW VistaOrdenesCliente AS
+SELECT 
+    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
+    o.id_orden AS "ID Orden",
+    o.estado_orden AS "Estado Orden",
+    o.precio_total AS "Total"
+FROM 
+    Orden o
+JOIN 
+    UsuarioComprador u ON o.id_usuario = u.id_usuario;
+
+-- Consulta de la vista
+
+SELECT * FROM VistaOrdenesCliente;
+
+
+-- Vista de los pagos por cliente
+
+CREATE OR REPLACE VIEW VistaPagosCliente AS
+SELECT 
+    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
+    p.modo_pago AS "Modo Pago",
+    p.fecha_pago AS "Fecha Pago",
+    p.monto_pagado AS "Monto",
+    p.estado_pago AS "Estado"
+FROM 
+    Pago p
+JOIN 
+    UsuarioComprador u ON p.id_usuario = u.id_usuario;
+
+-- Consulta de la vista
+SELECT * FROM VistaPagosCliente;
+
