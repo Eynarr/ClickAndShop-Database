@@ -1007,3 +1007,19 @@ JOIN Vendedor v ON x.id_vendedor = v.id_vendedor
 JOIN Telefono t ON t.id_telefono = x.id_telefono;
 
 SELECT * FROM v_vendedor;
+
+-- Vista de ordenes de clientes
+CREATE OR REPLACE VIEW v_ordenComprador AS
+SELECT o.id_orden, o.precio_total, o.estado_orden, o.id_carrito, c.id_usuario, c.nombre_usuario, c.apellido_usuario, c.email_usuario, c.provincia, c.distrito, c.corregimiento, c.calle, c.numero_casa
+FROM Orden o
+JOIN UsuarioComprador c ON o.id_usuario = c.id_usuario;
+
+SELECT * FROM v_ordenComprador;
+
+-- Vista de pagos de clientes
+CREATE OR REPLACE VIEW v_pagoComprador AS
+SELECT p.id_pago, p.modo_pago, p.fecha_pago, p.id_orden, c.id_usuario, c.nombre_usuario, c.apellido_usuario, c.email_usuario
+FROM Pago p
+JOIN UsuarioComprador c ON p.id_usuario = c.id_usuario;
+
+SELECT * FROM v_pagoComprador;
