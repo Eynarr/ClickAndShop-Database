@@ -974,7 +974,7 @@ END RealizarPago;
 /
 
 BEGIN
-    RealizarPago(2, 299.97, 'Tarjeta de Crédito');
+    RealizarPago(1, 89.98, 'Tarjeta de Crédito');
 END;
 /
 
