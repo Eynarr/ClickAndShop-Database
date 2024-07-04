@@ -1,125 +1,125 @@
 CREATE TABLE Vendedor (
-    id_vendedor NUMBER,
-    ventas_totales VARCHAR2(255) NOT NULL,
-    nombre_vendedor VARCHAR2(255) NOT NULL,
-    email_vendedor VARCHAR2(255) UNIQUE NOT NULL,
-    contrasenha_vendedor VARCHAR2(255) NOT NULL,
-    CONSTRAINT pk_vendedor_id PRIMARY KEY (id_vendedor)
+    ven_id_vendedor NUMBER,
+    ven_ventas_totales VARCHAR2(255) NOT NULL,
+    ven_nombre_vendedor VARCHAR2(255) NOT NULL,
+    ven_email_vendedor VARCHAR2(255) UNIQUE NOT NULL,
+    ven_contrasenha_vendedor VARCHAR2(255) NOT NULL,
+    CONSTRAINT pk_vendedor_id PRIMARY KEY (ven_id_vendedor)
 );
 
 CREATE TABLE Categoria (
-    id_categoria NUMBER,
-    nombre_categoria VARCHAR2(100) NOT NULL,
-    descripcion VARCHAR2(500),
-    CONSTRAINT pk_id_categoria PRIMARY KEY (id_categoria)
+    cat_id_categoria NUMBER,
+    cat_nombre_categoria VARCHAR2(100) NOT NULL,
+    cat_descripcion VARCHAR2(500),
+    CONSTRAINT pk_id_categoria PRIMARY KEY (cat_id_categoria)
 );
 
 CREATE TABLE UsuarioComprador (
-    id_usuario NUMBER NOT NULL,
-    nombre_usuario VARCHAR2(255) NOT NULL,
-    apellido_usuario VARCHAR2(255) NOT NULL,
-    email_usuario VARCHAR2(255) UNIQUE NOT NULL,
-    contrasenha_usuario VARCHAR2(255) NOT NULL,
-    fecha_nacimiento_usuario DATE NOT NULL,
-    provincia VARCHAR2(255) NOT NULL,
-    distrito VARCHAR2(255) NOT NULL,
-    corregimiento VARCHAR2(255) NOT NULL,
-    calle VARCHAR2(255) NOT NULL,
-    numero_casa VARCHAR2(255) NOT NULL,
-    CONSTRAINT pk_id_usuario PRIMARY KEY (id_usuario)
+    usu_id_usuario NUMBER NOT NULL,
+    usu_nombre_usuario VARCHAR2(255) NOT NULL,
+    usu_apellido_usuario VARCHAR2(255) NOT NULL,
+    usu_email_usuario VARCHAR2(255) UNIQUE NOT NULL,
+    usu_contrasenha_usuario VARCHAR2(255) NOT NULL,
+    usu_fecha_nacimiento_usuario DATE NOT NULL,
+    usu_provincia VARCHAR2(255) NOT NULL,
+    usu_distrito VARCHAR2(255) NOT NULL,
+    usu_corregimiento VARCHAR2(255) NOT NULL,
+    usu_calle VARCHAR2(255) NOT NULL,
+    usu_numero_casa VARCHAR2(255) NOT NULL,
+    CONSTRAINT pk_id_usuario PRIMARY KEY (usu_id_usuario)
 );
 
 CREATE TABLE Telefono (
-    id_telefono NUMBER ,
-    telefono VARCHAR2(20) NOT NULL,
-    CONSTRAINT pk_id_telefono PRIMARY KEY (id_telefono)
+    tel_id_telefono NUMBER ,
+    tel_telefono VARCHAR2(20) NOT NULL,
+    CONSTRAINT pk_id_telefono PRIMARY KEY (tel_id_telefono)
 );
 
 CREATE TABLE Carrito (
-    id_carrito NUMBER NOT NULL,
-    id_usuario NUMBER NOT NULL,
-    precio_total NUMBER DEFAULT 0 NOT NULL,
-    items_total NUMBER DEFAULT 0 NOT NULL,
-    CONSTRAINT pk_id_carrito PRIMARY KEY (id_carrito),
-    CONSTRAINT fk_id_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
+    car_id_carrito NUMBER NOT NULL,
+    car_id_usuario NUMBER NOT NULL,
+    car_precio_total NUMBER DEFAULT 0 NOT NULL,
+    car_items_total NUMBER DEFAULT 0 NOT NULL,
+    CONSTRAINT pk_id_carrito PRIMARY KEY (car_id_carrito),
+    CONSTRAINT fk_id_usuario FOREIGN KEY (car_id_usuario) REFERENCES UsuarioComprador(usu_id_usuario)
 );
 
 CREATE TABLE tipos_telefonos_vendedor (
-    id_vendedor NUMBER NOT NULL,
-    id_telefono NUMBER NOT NULL,
-    tipo_telefono VARCHAR2(20) NOT NULL,
-    CONSTRAINT pk_telefonos_vendedor PRIMARY KEY (id_telefono, id_vendedor),
-    CONSTRAINT fk_id_telefono FOREIGN KEY (id_telefono) REFERENCES Telefono(id_telefono),
-    CONSTRAINT fk_id_vendedor FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
+    ttv_id_vendedor NUMBER NOT NULL,
+    ttv_id_telefono NUMBER NOT NULL,
+    ttv_tipo_telefono VARCHAR2(20) NOT NULL,
+    CONSTRAINT pk_telefonos_vendedor PRIMARY KEY (ttv_id_telefono, ttv_id_vendedor),
+    CONSTRAINT fk_id_telefono FOREIGN KEY (ttv_id_telefono) REFERENCES Telefono(tel_id_telefono),
+    CONSTRAINT fk_id_vendedor FOREIGN KEY (ttv_id_vendedor) REFERENCES Vendedor(ven_id_vendedor)
 );
 
 CREATE TABLE tipos_telefonos_usuario (
-    id_usuario NUMBER NOT NULL,
-    id_telefono NUMBER NOT NULL,
-    tipo_telefono VARCHAR2(20) NOT NULL,
-    CONSTRAINT pk_telefonos_usuario PRIMARY KEY (id_telefono, id_usuario),
-    CONSTRAINT fk_idtelefono FOREIGN KEY (id_telefono) REFERENCES Telefono(id_telefono),
-    CONSTRAINT fk_idusuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
+    ttu_id_usuario NUMBER NOT NULL,
+    ttu_id_telefono NUMBER NOT NULL,
+    ttu_tipo_telefono VARCHAR2(20) NOT NULL,
+    CONSTRAINT pk_telefonos_usuario PRIMARY KEY (ttu_id_telefono, ttu_id_usuario),
+    CONSTRAINT fk_idtelefono FOREIGN KEY (ttu_id_telefono) REFERENCES Telefono(tel_id_telefono),
+    CONSTRAINT fk_idusuario FOREIGN KEY (ttu_id_usuario) REFERENCES UsuarioComprador(usu_id_usuario)
 );
 
 CREATE TABLE Orden (
-    id_orden NUMBER NOT NULL,
-    id_carrito NUMBER NOT NULL,
-    id_usuario NUMBER NOT NULL,
-    estado_orden VARCHAR2(255) NOT NULL,
-    precio_total NUMBER NOT NULL,
-    CONSTRAINT pk_id_orden PRIMARY KEY (id_orden),
-    CONSTRAINT fk_id_orden_carrito FOREIGN KEY (id_carrito) REFERENCES Carrito(id_carrito),
-    CONSTRAINT fk_id_orden_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
+    ord_id_orden NUMBER NOT NULL,
+    ord_id_carrito NUMBER NOT NULL,
+    ord_id_usuario NUMBER NOT NULL,
+    ord_estado_orden VARCHAR2(255) NOT NULL,
+    ord_precio_total NUMBER NOT NULL,
+    CONSTRAINT pk_id_orden PRIMARY KEY (ord_id_orden),
+    CONSTRAINT fk_id_orden_carrito FOREIGN KEY (ord_id_carrito) REFERENCES Carrito(car_id_carrito),
+    CONSTRAINT fk_id_orden_usuario FOREIGN KEY (ord_id_usuario) REFERENCES UsuarioComprador(usu_id_usuario)
 );
 
 CREATE TABLE Pago (
-    id_pago NUMBER NOT NULL,
-    id_usuario NUMBER NOT NULL,
-    modo_pago VARCHAR2(255) NOT NULL,
-    fecha_pago DATE DEFAULT SYSDATE,
-    id_orden NUMBER NOT NULL,
-    CONSTRAINT pk_id_pago PRIMARY KEY (id_pago),
-    CONSTRAINT fk_id_pago_orden FOREIGN KEY (id_orden) REFERENCES Orden(id_orden),
-    CONSTRAINT fk_id_pago_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
+    pag_id_pago NUMBER NOT NULL,
+    pag_id_usuario NUMBER NOT NULL,
+    pag_modo_pago VARCHAR2(255) NOT NULL,
+    pag_fecha_pago DATE DEFAULT SYSDATE,
+    pag_id_orden NUMBER NOT NULL,
+    CONSTRAINT pk_id_pago PRIMARY KEY (pag_id_pago),
+    CONSTRAINT fk_id_pago_orden FOREIGN KEY (pag_id_orden) REFERENCES Orden(ord_id_orden),
+    CONSTRAINT fk_id_pago_usuario FOREIGN KEY (pag_id_usuario) REFERENCES UsuarioComprador(usu_id_usuario)
 );
 
 CREATE TABLE Producto (
-    id_producto NUMBER NOT NULL,
-    nombre_producto VARCHAR2(255) NOT NULL,
-    descripcion_producto VARCHAR2(500) NOT NULL,
-    marca VARCHAR2(255) NOT NULL,
-    inventario NUMBER NOT NULL,
-    precio NUMBER NOT NULL,
-    id_categoria NUMBER NOT NULL,
-    id_vendedor NUMBER NOT NULL,
-    CONSTRAINT pk_id_producto PRIMARY KEY (id_producto),
-    CONSTRAINT fk_id_producto_categoria FOREIGN KEY (id_categoria) REFERENCES Categoria(id_categoria),
-    CONSTRAINT fk_id_producto_vendedor FOREIGN KEY (id_vendedor) REFERENCES Vendedor(id_vendedor)
+    pro_id_producto NUMBER NOT NULL,
+    pro_nombre_producto VARCHAR2(255) NOT NULL,
+    pro_descripcion_producto VARCHAR2(500) NOT NULL,
+    pro_marca VARCHAR2(255) NOT NULL,
+    pro_inventario NUMBER NOT NULL,
+    pro_precio NUMBER NOT NULL,
+    pro_id_categoria NUMBER NOT NULL,
+    pro_id_vendedor NUMBER NOT NULL,
+    CONSTRAINT pk_id_producto PRIMARY KEY (pro_id_producto),
+    CONSTRAINT fk_id_producto_categoria FOREIGN KEY (pro_id_categoria) REFERENCES Categoria(cat_id_categoria),
+    CONSTRAINT fk_id_producto_vendedor FOREIGN KEY (pro_id_vendedor) REFERENCES Vendedor(ven_id_vendedor)
 );
 
 
 CREATE TABLE OrdenItem (
-    id_orden NUMBER NOT NULL,
-    id_producto NUMBER NOT NULL,
-    cantidad NUMBER NOT NULL,
-    precio NUMBER NOT NULL,
-    fecha_de_orden DATE NOT NULL,
-    fecha_envio DATE,
-    CONSTRAINT pk_ordenitem PRIMARY KEY (id_orden, id_producto ),
-    CONSTRAINT fk_id_orden_item FOREIGN KEY (id_orden) REFERENCES Orden(id_orden),
-    CONSTRAINT fk_id_producto_ordenitem FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+    ori_id_orden NUMBER NOT NULL,
+    ori_id_producto NUMBER NOT NULL,
+    ori_cantidad NUMBER NOT NULL,
+    ori_precio NUMBER NOT NULL,
+    ori_fecha_de_orden DATE NOT NULL,
+    ori_fecha_envio DATE,
+    CONSTRAINT pk_ordenitem PRIMARY KEY (ori_id_orden, ori_id_producto ),
+    CONSTRAINT fk_id_orden_item FOREIGN KEY (ori_id_orden) REFERENCES Orden(ord_id_orden),
+    CONSTRAINT fk_id_producto_ordenitem FOREIGN KEY (ori_id_producto) REFERENCES Producto(pro_id_producto)
 );
 
 CREATE TABLE resenhas (
-    id_resenha NUMBER NOT NULL,
-    id_usuario NUMBER NOT NULL,
-    calificacion VARCHAR2(255) NOT NULL,
-    descripcion VARCHAR2(255) NOT NULL,
-    id_producto NUMBER NOT NULL,
-    CONSTRAINT pk_id_resenha PRIMARY KEY (id_resenha),
-    CONSTRAINT fk_id_producto FOREIGN KEY (id_producto) REFERENCES Producto(id_producto),
-    CONSTRAINT fk_id_resenha_usuario FOREIGN KEY (id_usuario) REFERENCES UsuarioComprador(id_usuario)
+    res_id_resenha NUMBER NOT NULL,
+    res_id_usuario NUMBER NOT NULL,
+    res_calificacion VARCHAR2(255) NOT NULL,
+    res_descripcion VARCHAR2(255) NOT NULL,
+    res_id_producto NUMBER NOT NULL,
+    CONSTRAINT pk_id_resenha PRIMARY KEY (res_id_resenha),
+    CONSTRAINT fk_id_producto FOREIGN KEY (res_id_producto) REFERENCES Producto(pro_id_producto),
+    CONSTRAINT fk_id_resenha_usuario FOREIGN KEY (res_id_usuario) REFERENCES UsuarioComprador(usu_id_usuario)
 );
 
 --Tabla Auditoria
@@ -176,35 +176,39 @@ ALTER TABLE UsuarioComprador ADD CONSTRAINT chk_usu_sexo CHECK(usu_sexo IN('F', 
 
 -- Actualizar la tabla Producto
 
-ALTER TABLE Producto ADD CONSTRAINT chk_inventario CHECK (inventario >= 0);
-ALTER TABLE Producto ADD CONSTRAINT chk_precio CHECK (precio >= 0);
+ALTER TABLE Producto ADD CONSTRAINT chk_inventario CHECK (pro_inventario >= 0);
+ALTER TABLE Producto ADD CONSTRAINT chk_precio CHECK (pro_precio >= 0);
 
 -- Actualizar la tabla carrito
 
-ALTER TABLE Carrito ADD CONSTRAINT chk_items CHECK (items_total >= 0);
-ALTER TABLE Carrito ADD CONSTRAINT chk_precio_carrito CHECK (precio_total >= 0);
+ALTER TABLE Carrito ADD CONSTRAINT chk_items CHECK (car_items_total >= 0);
+ALTER TABLE Carrito ADD CONSTRAINT chk_precio_carrito CHECK (car_precio_total >= 0);
 
 -- Actualizar la tabla pago
 
-ALTER TABLE Pago ADD monto_pagado NUMBER NOT NULL;
-ALTER TABLE Pago ADD (estado_pago VARCHAR2(50) DEFAULT 'Pendiente');
-ALTER TABLE Pago ADD CONSTRAINT chk_monto_pagado CHECK (monto_pagado >= 0);
+ALTER TABLE Pago ADD pag_monto_pagado NUMBER NOT NULL;
+ALTER TABLE Pago ADD (pag_estado_pago VARCHAR2(50) DEFAULT 'Pendiente');
+ALTER TABLE Pago ADD CONSTRAINT chk_monto_pagado CHECK (pag_monto_pagado >= 0);
 
 -- Actualizar la tabla ordenitem
 
-ALTER TABLE OrdenItem ADD CONSTRAINT chk_cantidad CHECK (cantidad >=0);
-ALTER TABLE OrdenItem ADD CONSTRAINT chk_precio_orden CHECK (precio >=0);
+ALTER TABLE OrdenItem ADD CONSTRAINT chk_cantidad CHECK (ori_cantidad >=0);
+ALTER TABLE OrdenItem ADD CONSTRAINT chk_precio_orden CHECK (ori_precio >=0);
 
+
+-- Actualizar la tabla resenhas
+
+ALTER TABLE Resenhas ADD res_fecha DATE DEFAULT SYSDATE;
 
 -- Tabla intermedia para gestionar los productos del carrito
 
 CREATE TABLE CarritoProducto (
-    id_carrito NUMBER,
-    id_producto NUMBER,
-    cantidad NUMBER,
-    CONSTRAINT pk_carrito_producto PRIMARY KEY (id_carrito, id_producto),
-    CONSTRAINT fk_carrito_producto FOREIGN KEY (id_carrito) REFERENCES Carrito(id_carrito),
-    CONSTRAINT fk_producto_carrito FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+    cap_id_carrito NUMBER,
+    cap_id_producto NUMBER,
+    cap_cantidad NUMBER,
+    CONSTRAINT pk_carrito_producto PRIMARY KEY (cap_id_carrito, cap_id_producto),
+    CONSTRAINT fk_carrito_producto FOREIGN KEY (cap_id_carrito) REFERENCES Carrito(car_id_carrito),
+    CONSTRAINT fk_producto_carrito FOREIGN KEY (cap_id_producto) REFERENCES Producto(pro_id_producto)
 );
 
 
@@ -223,7 +227,7 @@ BEGIN
             aud_id_prod_afectado, aud_precio_prod_despues, aud_inven_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'I', USER, SYSDATE,
-            :NEW.id_producto, :NEW.precio, :NEW.inventario
+            :NEW.pro_id_producto, :NEW.pro_precio, :NEW.pro_inventario
         );
     ELSIF UPDATING THEN
         INSERT INTO Auditoria (
@@ -232,8 +236,8 @@ BEGIN
             aud_inven_antes, aud_inven_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'U', USER, SYSDATE,
-            :OLD.id_producto, :OLD.precio, :NEW.precio,
-            :OLD.inventario, :NEW.inventario
+            :OLD.pro_id_producto, :OLD.pro_precio, :NEW.pro_precio,
+            :OLD.pro_inventario, :NEW.pro_inventario
         );
     ELSIF DELETING THEN
         INSERT INTO Auditoria (
@@ -241,7 +245,7 @@ BEGIN
             aud_id_prod_afectado, aud_precio_prod_antes, aud_inven_antes
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Producto', 'D', USER, SYSDATE,
-            :OLD.id_producto, :OLD.precio, :OLD.inventario
+            :OLD.pro_id_producto, :OLD.pro_precio, :OLD.pro_inventario
         );
     END IF;
 END;
@@ -260,7 +264,7 @@ BEGIN
             aud_id_orden_afectada, aud_estado_orden_despues, aud_id_usuario_despues, aud_precio_total_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'I', USER, SYSDATE,
-            :NEW.id_orden, :NEW.estado_orden, :NEW.id_usuario, :NEW.precio_total
+            :NEW.ord_id_orden, :NEW.ord_estado_orden, :NEW.ord_id_usuario, :NEW.ord_precio_total
         );
     ELSIF UPDATING THEN
         INSERT INTO Auditoria (
@@ -269,8 +273,8 @@ BEGIN
             aud_estado_orden_despues, aud_id_usuario_despues, aud_precio_total_despues
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'U', USER, SYSDATE,
-            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.precio_total,
-            :NEW.estado_orden, :NEW.id_usuario, :NEW.precio_total
+            :OLD.ord_id_orden, :OLD.ord_estado_orden, :OLD.ord_id_usuario, :OLD.ord_precio_total,
+            :NEW.ord_estado_orden, :NEW.ord_id_usuario, :NEW.ord_precio_total
         );
     ELSIF DELETING THEN
         INSERT INTO Auditoria (
@@ -278,7 +282,7 @@ BEGIN
             aud_id_orden_afectada, aud_estado_orden_antes, aud_id_usuario_antes, aud_precio_total_antes
         ) VALUES (
             seq_auditoria.NEXTVAL, 'Orden', 'D', USER, SYSDATE,
-            :OLD.id_orden, :OLD.estado_orden, :OLD.id_usuario, :OLD.precio_total
+            :OLD.ord_id_orden, :OLD.ord_estado_orden, :OLD.ord_id_usuario, :OLD.ord_precio_total
         );
     END IF;
 END;
@@ -289,10 +293,10 @@ END;
 -- Funcion para calcular la edad del usuario
 
 CREATE OR REPLACE FUNCTION EdadCliente(
-    p_nacimiento_usuario UsuarioComprador.fecha_nacimiento_usuario%TYPE
+    p_nacimiento_usuario UsuarioComprador.usu_fecha_nacimiento_usuario%TYPE
 ) RETURN NUMBER AS
     v_edad   UsuarioComprador.usu_edad%TYPE;
-    v_fecha  UsuarioComprador.fecha_nacimiento_usuario%TYPE := p_nacimiento_usuario;
+    v_fecha  UsuarioComprador.usu_fecha_nacimiento_usuario%TYPE := p_nacimiento_usuario;
 BEGIN
     v_edad := FLOOR(MONTHS_BETWEEN(SYSDATE, v_fecha) / 12);
     RETURN v_edad;
@@ -303,10 +307,10 @@ END;
 
 -- Vendedor
 CREATE OR REPLACE PROCEDURE AddVendedor(
-    p_ventas_totales IN Vendedor.ventas_totales%TYPE,
-    p_nombre_vendedor IN Vendedor.nombre_vendedor%TYPE,
-    p_email_vendedor IN Vendedor.email_vendedor%TYPE,
-    p_contrasenha_vendedor IN Vendedor.contrasenha_vendedor%TYPE
+    p_ventas_totales IN Vendedor.ven_ventas_totales%TYPE,
+    p_nombre_vendedor IN Vendedor.ven_nombre_vendedor%TYPE,
+    p_email_vendedor IN Vendedor.ven_email_vendedor%TYPE,
+    p_contrasenha_vendedor IN Vendedor.ven_contrasenha_vendedor%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -315,7 +319,7 @@ BEGIN
     END IF;
 
     INSERT INTO Vendedor (
-        id_vendedor, ventas_totales, nombre_vendedor, email_vendedor, contrasenha_vendedor
+        ven_id_vendedor, ven_ventas_totales, ven_nombre_vendedor, ven_email_vendedor, ven_contrasenha_vendedor
     ) VALUES (
         seq_vendedor.NEXTVAL, p_ventas_totales, p_nombre_vendedor, p_email_vendedor, p_contrasenha_vendedor
     );
@@ -344,8 +348,8 @@ END;
 
 -- Categoria
 CREATE OR REPLACE PROCEDURE AddCategoria(
-    p_nombre_categoria IN Categoria.nombre_categoria%TYPE,
-    p_descripcion IN Categoria.descripcion%TYPE
+    p_nombre_categoria IN Categoria.cat_nombre_categoria%TYPE,
+    p_descripcion IN Categoria.cat_descripcion%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -354,7 +358,7 @@ BEGIN
     END IF;
 
     INSERT INTO Categoria (
-        id_categoria, nombre_categoria, descripcion
+        cat_id_categoria, cat_nombre_categoria, cat_descripcion
     ) VALUES (
         seq_categoria.NEXTVAL, p_nombre_categoria, p_descripcion
     );
@@ -383,16 +387,16 @@ END;
 
 -- Usuario
 CREATE OR REPLACE PROCEDURE AddUsuarioComprador(
-    p_nombre_usuario IN UsuarioComprador.nombre_usuario%TYPE,
-    p_apellido_usuario IN UsuarioComprador.apellido_usuario%TYPE,
-    p_email_usuario IN UsuarioComprador.email_usuario%TYPE,
-    p_contrasenha_usuario IN UsuarioComprador.contrasenha_usuario%TYPE,
-    p_fecha_nacimiento_usuario IN UsuarioComprador.fecha_nacimiento_usuario%TYPE,
-    p_provincia IN UsuarioComprador.provincia%TYPE,
-    p_distrito IN UsuarioComprador.distrito%TYPE,
-    p_corregimiento IN UsuarioComprador.corregimiento%TYPE,
-    p_calle IN UsuarioComprador.calle%TYPE,
-    p_numero_casa IN UsuarioComprador.numero_casa%TYPE,
+    p_nombre_usuario IN UsuarioComprador.usu_nombre_usuario%TYPE,
+    p_apellido_usuario IN UsuarioComprador.usu_apellido_usuario%TYPE,
+    p_email_usuario IN UsuarioComprador.usu_email_usuario%TYPE,
+    p_contrasenha_usuario IN UsuarioComprador.usu_contrasenha_usuario%TYPE,
+    p_fecha_nacimiento_usuario IN UsuarioComprador.usu_fecha_nacimiento_usuario%TYPE,
+    p_provincia IN UsuarioComprador.usu_provincia%TYPE,
+    p_distrito IN UsuarioComprador.usu_distrito%TYPE,
+    p_corregimiento IN UsuarioComprador.usu_corregimiento%TYPE,
+    p_calle IN UsuarioComprador.usu_calle%TYPE,
+    p_numero_casa IN UsuarioComprador.usu_numero_casa%TYPE,
     p_sexo UsuarioComprador.usu_sexo%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
@@ -402,7 +406,7 @@ BEGIN
     END IF;
 
     INSERT INTO UsuarioComprador (
-        id_usuario, nombre_usuario, apellido_usuario, email_usuario, contrasenha_usuario, fecha_nacimiento_usuario, provincia, distrito, corregimiento, calle, numero_casa, usu_edad, usu_sexo
+        usu_id_usuario, usu_nombre_usuario, usu_apellido_usuario, usu_email_usuario, usu_contrasenha_usuario, usu_fecha_nacimiento_usuario, usu_provincia, usu_distrito, usu_corregimiento, usu_calle, usu_numero_casa, usu_edad, usu_sexo
     ) VALUES (
         seq_usuario.NEXTVAL, p_nombre_usuario, p_apellido_usuario, p_email_usuario, p_contrasenha_usuario, p_fecha_nacimiento_usuario, p_provincia, p_distrito, p_corregimiento, p_calle, p_numero_casa, EdadCliente(p_fecha_nacimiento_usuario), p_sexo
     );
@@ -431,7 +435,7 @@ END;
 
 -- Telefono
 CREATE OR REPLACE PROCEDURE AddTelefono(
-    p_telefono IN Telefono.telefono%TYPE
+    p_telefono IN Telefono.tel_telefono%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -440,7 +444,7 @@ BEGIN
     END IF;
 
     INSERT INTO Telefono (
-        id_telefono, telefono
+        tel_id_telefono,tel_telefono
     ) VALUES (
         seq_telefono.NEXTVAL, p_telefono
     );
@@ -475,7 +479,7 @@ END;
 
 -- Carrito
 CREATE OR REPLACE PROCEDURE AddCarrito(
-    p_id_usuario IN Carrito.id_usuario%TYPE
+    p_id_usuario IN Carrito.car_id_usuario%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -484,7 +488,7 @@ BEGIN
     END IF;
 
     INSERT INTO Carrito (
-        id_carrito, id_usuario, precio_total, items_total
+        car_id_carrito, car_id_usuario, car_precio_total, car_items_total
     ) VALUES (
         seq_carrito.NEXTVAL, p_id_usuario, 0, 0
     );
@@ -513,9 +517,9 @@ END;
 
 -- Telefono vendedor
 CREATE OR REPLACE PROCEDURE AddTipoTelefonoVendedor(
-    p_id_vendedor IN tipos_telefonos_vendedor.id_vendedor%TYPE,
-    p_id_telefono IN tipos_telefonos_vendedor.id_telefono%TYPE,
-    p_tipo_telefono IN tipos_telefonos_vendedor.tipo_telefono%TYPE
+    p_id_vendedor IN tipos_telefonos_vendedor.ttv_id_vendedor%TYPE,
+    p_id_telefono IN tipos_telefonos_vendedor.ttv_id_telefono%TYPE,
+    p_tipo_telefono IN tipos_telefonos_vendedor.ttv_tipo_telefono%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -524,7 +528,7 @@ BEGIN
     END IF;
 
     INSERT INTO tipos_telefonos_vendedor (
-        id_vendedor, id_telefono, tipo_telefono
+        ttv_id_vendedor, ttv_id_telefono, ttv_tipo_telefono
     ) VALUES (
         p_id_vendedor, p_id_telefono, p_tipo_telefono
     );
@@ -554,9 +558,9 @@ END;
 
 -- Telefono usuario
 CREATE OR REPLACE PROCEDURE AddTipoTelefonoUsuario(
-    p_id_usuario IN tipos_telefonos_usuario.id_usuario%TYPE,
-    p_id_telefono IN tipos_telefonos_usuario.id_telefono%TYPE,
-    p_tipo_telefono IN tipos_telefonos_usuario.tipo_telefono%TYPE
+    p_id_usuario IN tipos_telefonos_usuario.ttu_id_usuario%TYPE,
+    p_id_telefono IN tipos_telefonos_usuario.ttu_id_telefono%TYPE,
+    p_tipo_telefono IN tipos_telefonos_usuario.ttu_tipo_telefono%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -565,7 +569,7 @@ BEGIN
     END IF;
 
     INSERT INTO tipos_telefonos_usuario (
-        id_usuario, id_telefono, tipo_telefono
+        ttu_id_usuario, ttu_id_telefono, ttu_tipo_telefono
     ) VALUES (
         p_id_usuario, p_id_telefono, p_tipo_telefono
     );
@@ -593,13 +597,13 @@ END;
 
 -- Producto
 CREATE OR REPLACE PROCEDURE AddProducto(
-    p_nombre_producto IN Producto.nombre_producto%TYPE,
-    p_descripcion_producto IN Producto.descripcion_producto%TYPE,
-    p_marca IN Producto.marca%TYPE,
-    p_inventario IN Producto.inventario%TYPE,
-    p_precio IN Producto.precio%TYPE,
-    p_id_categoria IN Producto.id_categoria%TYPE,
-    p_id_vendedor IN Producto.id_vendedor%TYPE
+    p_nombre_producto IN Producto.pro_nombre_producto%TYPE,
+    p_descripcion_producto IN Producto.pro_descripcion_producto%TYPE,
+    p_marca IN Producto.pro_marca%TYPE,
+    p_inventario IN Producto.pro_inventario%TYPE,
+    p_precio IN Producto.pro_precio%TYPE,
+    p_id_categoria IN Producto.pro_id_categoria%TYPE,
+    p_id_vendedor IN Producto.pro_id_vendedor%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -608,7 +612,7 @@ BEGIN
     END IF;
 
     INSERT INTO Producto (
-        id_producto, nombre_producto, descripcion_producto, marca, inventario, precio, id_categoria, id_vendedor
+        pro_id_producto, pro_nombre_producto, pro_descripcion_producto, pro_marca, pro_inventario, pro_precio, pro_id_categoria, pro_id_vendedor
     ) VALUES (
         seq_producto.NEXTVAL, p_nombre_producto, p_descripcion_producto, p_marca, p_inventario, p_precio, p_id_categoria, p_id_vendedor
     );
@@ -622,6 +626,8 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Ocurrió un error: ' || SQLERRM);
 END AddProducto;
 /
+
+-- Insercion
 
 BEGIN
     -- Categoria 1: Consolas y Videojuegos
@@ -670,10 +676,10 @@ END;
 
 -- Resenhas
 CREATE OR REPLACE PROCEDURE AddResenha(
-    p_id_usuario IN Resenhas.id_usuario%TYPE,
-    p_calificacion IN Resenhas.calificacion%TYPE,
-    p_descripcion IN Resenhas.descripcion%TYPE,
-    p_id_producto IN Resenhas.id_producto%TYPE
+    p_id_usuario IN Resenhas.res_id_usuario%TYPE,
+    p_calificacion IN Resenhas.res_calificacion%TYPE,
+    p_descripcion IN Resenhas.res_descripcion%TYPE,
+    p_id_producto IN Resenhas.res_id_producto%TYPE
 ) AS
     e_ParametroNulo EXCEPTION;
 BEGIN
@@ -682,9 +688,9 @@ BEGIN
     END IF;
 
     INSERT INTO Resenhas (
-        id_resenha, id_usuario, calificacion, descripcion, id_producto
+        res_id_resenha, res_id_usuario, res_calificacion, res_descripcion, res_id_producto, res_fecha
     ) VALUES (
-        seq_resenha.NEXTVAL, p_id_usuario, p_calificacion, p_descripcion, p_id_producto
+        seq_resenha.NEXTVAL, p_id_usuario, p_calificacion, p_descripcion, p_id_producto, SYSDATE
     );
 
 EXCEPTION
@@ -735,17 +741,17 @@ END;
 -- Procedimiento para agregar productos al carrito
 
 CREATE OR REPLACE PROCEDURE AgregarProductoCarrito (
-    p_id_carrito IN NUMBER,
-    p_id_producto IN NUMBER,
+    p_id_carrito IN Carrito.car_id_carrito%TYPE,
+    p_id_producto IN Producto.pro_id_producto%TYPE,
     p_cantidad IN NUMBER
 ) IS
     v_precio_producto NUMBER;
     v_inventario_producto NUMBER;
 BEGIN
     -- Obtener precio e inventario del producto
-    SELECT precio, inventario INTO v_precio_producto, v_inventario_producto
+    SELECT pro_precio, pro_inventario INTO v_precio_producto, v_inventario_producto
     FROM Producto
-    WHERE id_producto = p_id_producto;
+    WHERE pro_id_producto = p_id_producto;
 
     -- Validar que el inventario no sea negativo
     IF v_inventario_producto < p_cantidad THEN
@@ -754,27 +760,27 @@ BEGIN
 
     -- Actualizar inventario del producto
     UPDATE Producto
-    SET inventario = inventario - p_cantidad
-    WHERE id_producto = p_id_producto;
+    SET pro_inventario = pro_inventario - p_cantidad
+    WHERE pro_id_producto = p_id_producto;
 
     -- Verificar si el producto ya está en el carrito
     BEGIN
         UPDATE CarritoProducto
-        SET cantidad = cantidad + p_cantidad
-        WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
+        SET cap_cantidad = cap_cantidad + p_cantidad
+        WHERE cap_id_carrito = p_id_carrito AND cap_id_producto = p_id_producto;
 
         IF SQL%ROWCOUNT = 0 THEN
             -- Si el producto no está en el carrito, insertarlo
-            INSERT INTO CarritoProducto (id_carrito, id_producto, cantidad)
+            INSERT INTO CarritoProducto (cap_id_carrito, cap_id_producto, cap_cantidad)
             VALUES (p_id_carrito, p_id_producto, p_cantidad);
         END IF;
     END;
 
     -- Actualizar totales del carrito
     UPDATE Carrito
-    SET precio_total = precio_total + (v_precio_producto * p_cantidad),
-        items_total = items_total + p_cantidad
-    WHERE id_carrito = p_id_carrito;
+    SET car_precio_total = car_precio_total + (v_precio_producto * p_cantidad),
+        car_items_total = car_items_total + p_cantidad
+    WHERE car_id_carrito = p_id_carrito;
 
     COMMIT;
 
@@ -803,22 +809,22 @@ END;
 -- Procedimiento para eliminar del carrito
 
 CREATE OR REPLACE PROCEDURE EliminarProductoCarrito (
-    p_id_carrito IN NUMBER,
-    p_id_producto IN NUMBER,
+    p_id_carrito IN Carrito.car_id_carrito%TYPE,
+    p_id_producto IN Producto.pro_id_producto%TYPE,
     p_cantidad IN NUMBER
 ) IS
     v_precio_producto NUMBER;
     v_cantidad_actual NUMBER;
 BEGIN
     -- Obtener precio del producto
-    SELECT precio INTO v_precio_producto
+    SELECT pro_precio INTO v_precio_producto
     FROM Producto
-    WHERE id_producto = p_id_producto;
+    WHERE pro_id_producto = p_id_producto;
 
     -- Obtener la cantidad actual del producto en el carrito
-    SELECT cantidad INTO v_cantidad_actual
+    SELECT cap_cantidad INTO v_cantidad_actual
     FROM CarritoProducto
-    WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
+    WHERE cap_id_carrito = p_id_carrito AND cap_id_producto = p_id_producto;
 
     -- Validar que la cantidad a eliminar no sea mayor que la cantidad actual
     IF v_cantidad_actual < p_cantidad THEN
@@ -827,24 +833,24 @@ BEGIN
 
     -- Actualizar inventario del producto
     UPDATE Producto
-    SET inventario = inventario + p_cantidad
-    WHERE id_producto = p_id_producto;
+    SET pro_inventario = pro_inventario + p_cantidad
+    WHERE pro_id_producto = p_id_producto;
 
     -- Actualizar o eliminar el producto del carrito
     IF v_cantidad_actual = p_cantidad THEN
         DELETE FROM CarritoProducto
-        WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
+        WHERE cap_id_carrito = p_id_carrito AND cap_id_producto = p_id_producto;
     ELSE
         UPDATE CarritoProducto
-        SET cantidad = cantidad - p_cantidad
-        WHERE id_carrito = p_id_carrito AND id_producto = p_id_producto;
+        SET cap_cantidad = cap_cantidad - p_cantidad
+        WHERE cap_id_carrito = p_id_carrito AND cap_id_producto = p_id_producto;
     END IF;
 
     -- Actualizar totales del carrito
     UPDATE Carrito
-    SET precio_total = precio_total - (v_precio_producto * p_cantidad),
-        items_total = items_total - p_cantidad
-    WHERE id_carrito = p_id_carrito;
+    SET car_precio_total = car_precio_total - (v_precio_producto * p_cantidad),
+        car_items_total = car_items_total - p_cantidad
+    WHERE car_id_carrito = p_id_carrito;
 
     COMMIT;
 
@@ -864,14 +870,14 @@ END EliminarProductoCarrito;
 -- Llamada al procedimiento
 
 BEGIN
-    EliminarProductoCarrito(1,1,1);
+    EliminarProductoCarrito(1,1,3);
 END;
 /
 
 -- Transacción para generar la orden
 
 CREATE OR REPLACE PROCEDURE CrearOrden (
-    p_id_carrito IN NUMBER
+    p_id_carrito IN Carrito.car_id_carrito%TYPE
 ) IS
     v_id_orden NUMBER;
     v_id_usuario NUMBER;
@@ -879,35 +885,35 @@ CREATE OR REPLACE PROCEDURE CrearOrden (
     v_estado_orden VARCHAR2(255) := 'Pendiente';
 BEGIN
     -- Obtener id_usuario y precio_total del carrito
-    SELECT id_usuario, precio_total
+    SELECT car_id_usuario, car_precio_total
     INTO v_id_usuario, v_precio_total
     FROM Carrito
-    WHERE id_carrito = p_id_carrito;
+    WHERE car_id_carrito = p_id_carrito;
 
     -- Crear nueva orden
-    INSERT INTO Orden (id_orden, id_carrito, id_usuario, estado_orden, precio_total)
+    INSERT INTO Orden (ord_id_orden, ord_id_carrito, ord_id_usuario, ord_estado_orden, ord_precio_total)
     VALUES (seq_orden.NEXTVAL, p_id_carrito, v_id_usuario, v_estado_orden, v_precio_total)
-    RETURNING id_orden INTO v_id_orden;
+    RETURNING ord_id_orden INTO v_id_orden;
 
     -- Mover productos del carrito a OrdenItem
-    FOR r IN (
-        SELECT cp.id_producto, cp.cantidad, p.precio
+    FOR i IN (
+        SELECT cp.cap_id_producto, cp.cap_cantidad, p.pro_precio
         FROM CarritoProducto cp
-        JOIN Producto p ON cp.id_producto = p.id_producto
-        WHERE cp.id_carrito = p_id_carrito
+        JOIN Producto p ON cp.cap_id_producto = p.pro_id_producto
+        WHERE cp.cap_id_carrito = p_id_carrito
     ) LOOP
-        INSERT INTO OrdenItem (id_orden, id_producto, cantidad, precio, fecha_de_orden, fecha_envio)
-        VALUES (v_id_orden, r.id_producto, r.cantidad, r.precio, SYSDATE, NULL);
+        INSERT INTO OrdenItem (ori_id_orden, ori_id_producto, ori_cantidad, ori_precio, ori_fecha_de_orden, ori_fecha_envio)
+        VALUES (v_id_orden, i.cap_id_producto, i.cap_cantidad, i.pro_precio, SYSDATE, NULL);
     END LOOP;
 
     -- Vaciar carrito
     DELETE FROM CarritoProducto
-    WHERE id_carrito = p_id_carrito;
+    WHERE cap_id_carrito = p_id_carrito;
 
     -- Actualizar totales del carrito
     UPDATE Carrito
-    SET precio_total = 0, items_total = 0
-    WHERE id_carrito = p_id_carrito;
+    SET car_precio_total = 0, car_items_total = 0
+    WHERE car_id_carrito = p_id_carrito;
 
     COMMIT;
 
@@ -935,21 +941,21 @@ END;
 -- Transaccion para realizar el pago
 
 CREATE OR REPLACE PROCEDURE RealizarPago (
-    p_id_orden IN NUMBER,
-    p_monto_pagado IN NUMBER,
-    p_modo_pago IN VARCHAR2
+    p_id_orden IN Pago.pag_id_orden%TYPE,
+    p_monto_pagado IN Pago.pag_monto_pagado%TYPE,
+    p_modo_pago IN Pago.pag_modo_pago%TYPE
 ) IS
     v_precio_total NUMBER;
     v_id_usuario NUMBER;
     v_estado_orden VARCHAR2(20);
 BEGIN
     -- Obtener el total de la orden, el id del usuario y el estado de la orden
-    SELECT precio_total, id_usuario, estado_orden INTO v_precio_total, v_id_usuario, v_estado_orden
+    SELECT ord_precio_total, ord_id_usuario, ord_estado_orden INTO v_precio_total, v_id_usuario, v_estado_orden
     FROM Orden
-    WHERE id_orden = p_id_orden;
+    WHERE ord_id_orden = p_id_orden;
 
-    -- Validar que la orden no haya sido pagada
-    IF v_estado_orden = 'Pagada' THEN
+    -- Validar que la orden no haya sido enviada
+    IF v_estado_orden = 'Enviada' THEN
         RAISE_APPLICATION_ERROR(-20006, 'La orden ya ha sido pagada.');
     END IF;
 
@@ -960,16 +966,16 @@ BEGIN
 
     -- Actualizar estado de la orden a Enviada
     UPDATE Orden
-    SET estado_orden = 'Enviada'
-    WHERE id_orden = p_id_orden;
+    SET ord_estado_orden = 'Enviada'
+    WHERE ord_id_orden = p_id_orden;
 
     -- Actualizar fecha de envio de OrdenItem a un día después de haber pagado
     UPDATE OrdenItem
-    SET fecha_envio = SYSDATE + 1
-    WHERE id_orden = p_id_orden;
+    SET ori_fecha_envio = SYSDATE + 1
+    WHERE ori_id_orden = p_id_orden;
 
     -- Registrar el pago
-    INSERT INTO Pago (id_pago, id_usuario, modo_pago, fecha_pago, id_orden, monto_pagado, estado_pago)
+    INSERT INTO Pago (pag_id_pago, pag_id_usuario, pag_modo_pago, pag_fecha_pago, pag_id_orden, pag_monto_pagado, pag_estado_pago)
     VALUES (seq_pago.NEXTVAL, v_id_usuario, p_modo_pago, SYSDATE, p_id_orden, p_monto_pagado, 'Pagado');
 
     COMMIT;
@@ -998,12 +1004,12 @@ CREATE OR REPLACE PROCEDURE ResumenOrden(
     p_id_orden IN NUMBER
 ) IS
     CURSOR order_cursor IS
-        SELECT o.id_orden, o.id_carrito, o.estado_orden, o.precio_total,
-               oi.id_producto, oi.cantidad, oi.precio, p.nombre_producto
+        SELECT o.ord_id_orden, o.ord_id_carrito, o.ord_estado_orden, o.ord_precio_total,
+               oi.ori_id_producto, oi.ori_cantidad, oi.ori_precio, p.pro_nombre_producto
         FROM Orden o
-        JOIN OrdenItem oi ON o.id_orden = oi.id_orden
-        JOIN Producto p ON oi.id_producto = p.id_producto
-        WHERE o.id_orden = p_id_orden;
+        JOIN OrdenItem oi ON o.ord_id_orden = oi.ori_id_orden
+        JOIN Producto p ON oi.ori_id_producto = p.pro_id_producto
+        WHERE o.ord_id_orden = p_id_orden;
 
     v_order_row order_cursor%ROWTYPE;
     v_primera_fila BOOLEAN := TRUE;
@@ -1017,17 +1023,17 @@ BEGIN
         
         -- Imprimir el encabezado del pedido
         IF v_primera_fila THEN
-            DBMS_OUTPUT.PUT_LINE('ID Orden: ' || v_order_row.id_orden);
-            DBMS_OUTPUT.PUT_LINE('ID Carrito: ' || v_order_row.id_carrito);
-            DBMS_OUTPUT.PUT_LINE('Estado de orden: ' || v_order_row.estado_orden);
-            v_precio_total := v_order_row.precio_total; -- Guardar el precio total
+            DBMS_OUTPUT.PUT_LINE('ID Orden: ' || v_order_row.ord_id_orden);
+            DBMS_OUTPUT.PUT_LINE('ID Carrito: ' || v_order_row.ord_id_carrito);
+            DBMS_OUTPUT.PUT_LINE('Estado de orden: ' || v_order_row.ord_estado_orden);
+            v_precio_total := v_order_row.ord_precio_total; -- Guardar el precio total
             v_primera_fila := FALSE;
         END IF;
         
         -- Imprimir los productos del pedido
-        DBMS_OUTPUT.PUT_LINE('Nombre del producto: ' || v_order_row.nombre_producto);
-        DBMS_OUTPUT.PUT_LINE('Precio del producto: ' || v_order_row.precio);
-        DBMS_OUTPUT.PUT_LINE('Cantidad: ' || v_order_row.cantidad);
+        DBMS_OUTPUT.PUT_LINE('Nombre del producto: ' || v_order_row.pro_nombre_producto);
+        DBMS_OUTPUT.PUT_LINE('Precio del producto: ' || v_order_row.ori_precio);
+        DBMS_OUTPUT.PUT_LINE('Cantidad: ' || v_order_row.ori_cantidad);
     END LOOP;
     CLOSE order_cursor;
     
@@ -1059,20 +1065,20 @@ CREATE OR REPLACE PROCEDURE ActualizarInventarioProductos(
 ) IS
     v_count NUMBER;
 BEGIN
-    -- Contar el numero de productos con inventario bajo
+    -- Contar el número de productos con inventario bajo
     SELECT COUNT(*)
     INTO v_count
     FROM Producto
-    WHERE inventario <= 30; -- Valor para considerar inventario bajo
+    WHERE pro_inventario <= 30; -- Valor para considerar inventario bajo
 
     IF v_count = 0 THEN
         DBMS_OUTPUT.PUT_LINE('No se encontraron productos con inventario bajo.');
     ELSE
         DECLARE
             CURSOR cursor_inventario_bajo IS
-                SELECT id_producto, nombre_producto, inventario
+                SELECT pro_id_producto, pro_nombre_producto, pro_inventario
                 FROM Producto
-                WHERE inventario <= 30; -- Valor para considerar inventario bajo
+                WHERE pro_inventario <= 30; -- Valor para considerar inventario bajo
 
             v_inventario_bajo_row cursor_inventario_bajo%ROWTYPE;
         BEGIN
@@ -1083,10 +1089,10 @@ BEGIN
 
                 -- Actualizar el inventario del producto
                 UPDATE Producto
-                SET inventario = inventario + p_incremento
-                WHERE id_producto = v_inventario_bajo_row.id_producto;
+                SET pro_inventario = v_inventario_bajo_row.pro_inventario + p_incremento
+                WHERE pro_id_producto = v_inventario_bajo_row.pro_id_producto;
 
-                DBMS_OUTPUT.PUT_LINE('Inventario actualizado para el producto: ' || v_inventario_bajo_row.nombre_producto || ' con ID: ' || v_inventario_bajo_row.id_producto);
+                DBMS_OUTPUT.PUT_LINE('Inventario actualizado para el producto: ' || v_inventario_bajo_row.pro_nombre_producto || ' con ID: ' || v_inventario_bajo_row.pro_id_producto);
             END LOOP;
             CLOSE cursor_inventario_bajo;
             COMMIT;
@@ -1113,7 +1119,7 @@ CREATE OR REPLACE PROCEDURE ActualizarPrecioProductos(
     p_porcentaje IN NUMBER
 ) IS
     CURSOR cursor_producto IS
-        SELECT id_producto, precio
+        SELECT pro_id_producto, pro_precio
         FROM Producto;
 
     v_producto_row cursor_producto%ROWTYPE;
@@ -1125,10 +1131,10 @@ BEGIN
         
         -- Actualizar el precio del producto y redondear a dos decimales
         UPDATE Producto
-        SET precio = ROUND(precio * (1 + p_porcentaje / 100), 2)
-        WHERE id_producto = v_producto_row.id_producto;
+        SET pro_precio = ROUND(pro_precio * (1 + p_porcentaje / 100), 2)
+        WHERE pro_id_producto = v_producto_row.pro_id_producto;
 
-        DBMS_OUTPUT.PUT_LINE('Precio actualizado para el Producto ID: ' || v_producto_row.id_producto);
+        DBMS_OUTPUT.PUT_LINE('Precio actualizado para el Producto ID: ' || v_producto_row.pro_id_producto);
     END LOOP;
     CLOSE cursor_producto;
     COMMIT;
@@ -1148,90 +1154,96 @@ END;
 -- Vistas
 
 
--- Vista de inventario de productos
+-- Vista de Producto
 
 CREATE OR REPLACE VIEW VistaProducto AS
-SELECT p.nombre_producto AS "Producto", p.inventario AS "Stock", p.precio AS "Precio", c.nombre_categoria AS "Categoria"
+SELECT
+    p.pro_nombre_producto AS "Producto",
+    p.pro_inventario AS "Stock",
+    p.pro_precio AS "Precio",
+    c.cat_nombre_categoria AS "Categoria"
 FROM Producto p
-JOIN Categoria c ON p.id_categoria = c.id_categoria;
+JOIN Categoria c ON p.pro_id_categoria = c.cat_id_categoria;
 
 -- Llamada a la vista
 
 SELECT *FROM VistaProducto;
 
--- Vista de las reseñas de los usuarios
+-- Vista de Reseñas de Usuario
 
 CREATE OR REPLACE VIEW VistaResenhasUsuario AS
 SELECT 
-    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
-    p.nombre_producto AS "Producto",
-    r.calificacion AS "Calificacion",
-    r.descripcion AS "Descripcion"
+    u.usu_nombre_usuario || ' ' || u.usu_apellido_usuario AS "Usuario",
+    pr.pro_nombre_producto AS "Producto",
+    r.res_calificacion AS "Calificacion",
+    r.res_descripcion AS "Descripcion"
 FROM 
-    Resenhas r
+    resenhas r
 JOIN 
-    UsuarioComprador u ON r.id_usuario = u.id_usuario
+    UsuarioComprador u ON r.res_id_usuario = u.usu_id_usuario
 JOIN 
-    Producto p ON r.id_producto = p.id_producto;
+    Producto pr ON r.res_id_producto = pr.pro_id_producto;
 
 -- Consulta de la vista
+
 SELECT * FROM VistaResenhasUsuario;
 
 
--- Vista del carrito del cliente
+-- Vista de Carrito del Cliente
 
 CREATE OR REPLACE VIEW VistaCarritoCliente AS
 SELECT 
-    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
-    p.nombre_producto AS "Producto",
-    cp.cantidad AS "Cantidad",
-    p.precio AS "Precio",
-    (cp.cantidad * p.precio) AS "Total"
+    u.usu_nombre_usuario || ' ' || u.usu_apellido_usuario AS "Usuario",
+    p.pro_nombre_producto AS "Producto",
+    cp.cap_cantidad AS "Cantidad",
+    p.pro_precio AS "Precio",
+    (cp.cap_cantidad * p.pro_precio) AS "Total"
 FROM 
     CarritoProducto cp
 JOIN 
-    Carrito c ON cp.id_carrito = c.id_carrito
+    Carrito c ON cp.cap_id_carrito = c.car_id_carrito
 JOIN 
-    UsuarioComprador u ON c.id_usuario = u.id_usuario
+    UsuarioComprador u ON c.car_id_usuario = u.usu_id_usuario
 JOIN 
-    Producto p ON cp.id_producto = p.id_producto;
+    Producto p ON cp.cap_id_producto = p.pro_id_producto;
 
 -- Consulta de la vista
+
 SELECT * FROM VistaCarritoCliente;
 
 
--- Vista de las ordenes por cliente
+-- Vista de Órdenes por Cliente
 
 CREATE OR REPLACE VIEW VistaOrdenesCliente AS
 SELECT 
-    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
-    o.id_orden AS "ID Orden",
-    o.estado_orden AS "Estado Orden",
-    o.precio_total AS "Total"
+    u.usu_nombre_usuario || ' ' || u.usu_apellido_usuario AS "Usuario",
+    o.ord_id_orden AS "ID Orden",
+    o.ord_estado_orden AS "Estado Orden",
+    o.ord_precio_total AS "Total"
 FROM 
     Orden o
 JOIN 
-    UsuarioComprador u ON o.id_usuario = u.id_usuario;
+    UsuarioComprador u ON o.ord_id_usuario = u.usu_id_usuario;
 
 -- Consulta de la vista
 
 SELECT * FROM VistaOrdenesCliente;
 
 
--- Vista de los pagos por cliente
+-- Vista de Pagos por Cliente
 
 CREATE OR REPLACE VIEW VistaPagosCliente AS
 SELECT 
-    u.nombre_usuario || ' ' || u.apellido_usuario AS "Usuario",
-    p.modo_pago AS "Modo Pago",
-    p.fecha_pago AS "Fecha Pago",
-    p.monto_pagado AS "Monto",
-    p.estado_pago AS "Estado"
+    u.usu_nombre_usuario || ' ' || u.usu_apellido_usuario AS "Usuario",
+    p.pag_modo_pago AS "Modo Pago",
+    p.pag_fecha_pago AS "Fecha Pago",
+    p.pag_monto_pagado AS "Monto",
+    p.pag_estado_pago AS "Estado"
 FROM 
     Pago p
 JOIN 
-    UsuarioComprador u ON p.id_usuario = u.id_usuario;
+    UsuarioComprador u ON p.pag_id_usuario = u.usu_id_usuario;
 
 -- Consulta de la vista
-SELECT * FROM VistaPagosCliente;
 
+SELECT * FROM VistaPagosCliente;
